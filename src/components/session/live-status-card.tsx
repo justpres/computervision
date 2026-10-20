@@ -66,7 +66,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
           )}
         >
           <Cpu className="w-3.5 h-3.5" aria-hidden="true" />
-          {isWorkerReady ? 'Worker Active' : 'Initializing Worker'}
+          {isWorkerReady ? 'Detection ready' : 'Starting detection...'}
         </span>
       </div>
 
@@ -109,10 +109,10 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
 
       {/* Diagnostics Bar */}
       <div className="flex items-center justify-between pt-1 border-t border-border/60 text-caption text-on-surface-muted">
-        <span>Inference thread: Web Worker (WASM)</span>
+        <span>Runs privately in your browser</span>
         {processingTimeMs > 0 && (
           <span className="tabular-nums font-medium">
-            Latency: <strong className="text-on-surface">{processingTimeMs} ms</strong>
+            Response time: <strong className="text-on-surface">{processingTimeMs} ms</strong>
           </span>
         )}
       </div>
