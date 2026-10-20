@@ -1,7 +1,6 @@
 import React from 'react';
 import { UserCheck, UserX, Cpu, Play, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 export interface LiveStatusCardProps {
@@ -18,7 +17,7 @@ export interface LiveStatusCardProps {
 /**
  * Live status & unified session card (M0 baseline):
  * - In standby: "Ready to Start" card with primary Start action and privacy facts.
- * - When active: "Active Session" card with Stop action, session duration, compact face status tile, and response time.
+ * - When active: "Active Session" card with Stop action, session duration, live Face status pill in header, and response time.
  * - Streamlined and compact; eliminates oversized banners and text clutter.
  * - Accessible status region (role="status", aria-live="polite").
  */
@@ -86,21 +85,46 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
       )}
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h3 className="text-h3 font-semibold text-on-surface">Active Session</h3>
+
+            {/* Face Status Pill */}
             <span
               className={cn(
-                'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-caption font-semibold',
-                isWorkerReady
+                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption font-semibold transition-colors',
+                faceDetected
                   ? 'bg-success-container text-success'
                   : 'bg-caution-container text-caution'
               )}
             >
-              <Cpu className="w-3.5 h-3.5" aria-hidden="true" />
-              {isWorkerReady ? 'Detection ready' : 'Starting...'}
+              {faceDetected ? (
+                <>
+                  <UserCheck className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                  <span>Face in view</span>
+                </>
+              ) : (
+                <>
+                  <UserX className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                  <span>Looking for face...</span>
+                </>
+              )}
+            </span>
+
+            {/* Worker Engine State */}
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-medium',
+                isWorkerReady
+                  ? 'bg-background text-on-surface-muted border border-border'
+                  : 'bg-caution-container text-caution'
+              )}
+            >
+              <Cpu className="w-3 h-3" aria-hidden="true" />
+              {isWorkerReady ? 'Ready' : 'Starting...'}
             </span>
           </div>
+
           <p className="text-caption text-on-surface-muted">
             Elapsed duration:{' '}
             <strong className="text-primary font-semibold tabular-nums">
@@ -115,46 +139,13 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
             variant="danger"
             size="default"
             onClick={onStop}
-            className="w-full sm:w-auto min-w-[140px] gap-2 font-semibold"
+            className="w-full sm:w-auto min-w-[140px] gap-2 font-semibold self-start sm:self-auto shrink-0"
             aria-label="Stop study session immediately"
           >
             <Square className="w-4 h-4 fill-current" aria-hidden="true" />
             <span>Stop session</span>
           </Button>
         )}
-      </div>
-
-      {/* Primary Detection Signal: Face State Tile */}
-      <div className="rounded-md border border-border bg-background p-3.5 space-y-2.5">
-        <span className="text-caption font-semibold uppercase tracking-wider text-on-surface-muted block">
-          Face
-        </span>
-
-        <div className="flex items-center">
-          <Badge
-            variant={faceDetected ? 'success' : 'caution'}
-            className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center truncate"
-          >
-            {faceDetected ? (
-              <>
-                <UserCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span>Face in view</span>
-              </>
-            ) : (
-              <>
-                <UserX className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span>Looking for face</span>
-              </>
-            )}
-          </Badge>
-        </div>
-
-        <div className="pt-2 border-t border-border/50 flex items-center justify-between text-caption text-on-surface-muted">
-          <span>Signal</span>
-          <span className="font-semibold text-on-surface">
-            {faceDetected ? 'Present' : 'Seeking'}
-          </span>
-        </div>
       </div>
 
       {/* Diagnostics Bar */}
