@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserCheck, UserX, Cpu, Play, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 export interface LiveStatusCardProps {
@@ -15,11 +16,10 @@ export interface LiveStatusCardProps {
 }
 
 /**
- * Live status & unified session card:
+ * Live status & unified session card (M0 baseline):
  * - In standby: "Ready to Start" card with primary Start action and privacy facts.
- * - When active: "Active Session" card with Stop action, session duration, face status, and response time.
- * - Balances column heights across the interface and removes duplicate cards.
- * - Neutral wording: "Face detected" / "Looking for face" (never "distracted" or alarms).
+ * - When active: "Active Session" card with Stop action, session duration, compact face status tile, and response time.
+ * - Streamlined and compact; eliminates oversized banners and text clutter.
  * - Accessible status region (role="status", aria-live="polite").
  */
 export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
@@ -124,40 +124,36 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
         )}
       </div>
 
-      {/* Primary Detection Signal: Face Detected */}
-      <div
-        className={cn(
-          'flex items-center gap-3 p-4 rounded-md border transition-colors',
-          faceDetected
-            ? 'bg-success-container/40 border-success/30 text-on-surface'
-            : 'bg-background border-border text-on-surface-muted'
-        )}
-      >
-        <div
-          className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center shrink-0',
-            faceDetected
-              ? 'bg-success-container text-success'
-              : 'bg-surface border border-border text-on-surface-muted'
-          )}
-          aria-hidden="true"
-        >
-          {faceDetected ? (
-            <UserCheck className="w-5 h-5" />
-          ) : (
-            <UserX className="w-5 h-5" />
-          )}
+      {/* Primary Detection Signal: Face State Tile */}
+      <div className="rounded-md border border-border bg-background p-3.5 space-y-2.5">
+        <span className="text-caption font-semibold uppercase tracking-wider text-on-surface-muted block">
+          Face
+        </span>
+
+        <div className="flex items-center">
+          <Badge
+            variant={faceDetected ? 'success' : 'caution'}
+            className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center truncate"
+          >
+            {faceDetected ? (
+              <>
+                <UserCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>Face in view</span>
+              </>
+            ) : (
+              <>
+                <UserX className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>Looking for face</span>
+              </>
+            )}
+          </Badge>
         </div>
 
-        <div className="space-y-0.5">
-          <div className="text-label font-semibold">
-            {faceDetected ? 'Face detected' : 'Looking for face...'}
-          </div>
-          <p className="text-caption text-on-surface-muted">
-            {faceDetected
-              ? 'One person detected in view. Landmark analysis running in background.'
-              : 'Please ensure your face is well-lit and facing the front laptop camera.'}
-          </p>
+        <div className="pt-2 border-t border-border/50 flex items-center justify-between text-caption text-on-surface-muted">
+          <span>Signal</span>
+          <span className="font-semibold text-on-surface">
+            {faceDetected ? 'Present' : 'Seeking'}
+          </span>
         </div>
       </div>
 
