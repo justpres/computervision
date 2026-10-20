@@ -32,7 +32,8 @@ export interface LiveStatusCardProps {
  *   "Head centered" / "Head turned" (never "distracted", "drowsy", or alarms).
  * - WCAG 2.1 AAA Enhanced contrast with event-eyes and event-head tokens.
  * - Single functional icon per badge, eliminating duplicate iconography.
- * - Vertical chunking prevents badge text wrapping or clipping card borders.
+ * - Purposeful vertical stacking: label on top, full-width badge in the middle,
+ *   and telemetry at the bottom completely prevents horizontal overflow or border collisions.
  * - Live worker performance metrics (inference time) in tabular figures.
  * - Accessible status region (role="status", aria-live="polite").
  */
@@ -147,18 +148,21 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
 
       {/* Observable Signals Grid: Eye Closure & Head Direction */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Eye Closure State */}
-        <div className="rounded-md border border-border bg-background p-3.5 flex flex-col justify-between gap-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-label font-semibold text-on-surface">Eye State</span>
+        {/* Eye Closure State Sub-Card */}
+        <div className="rounded-md border border-border bg-background p-3.5 space-y-2.5">
+          <span className="text-caption font-semibold uppercase tracking-wider text-on-surface-muted block">
+            Eye State
+          </span>
+
+          <div className="flex items-center">
             {faceDetected ? (
               <Badge
                 variant={isEyesClosed ? 'event-eyes' : 'neutral'}
-                className="tabular-nums shrink-0 whitespace-nowrap"
+                className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center"
               >
                 {isEyesClosed ? (
                   <>
-                    <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />
+                    <EyeOff className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                     <span>
                       Eyes closed
                       {formattedEyeDurationSec ? ` ${formattedEyeDurationSec}` : ''}
@@ -166,13 +170,15 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
                   </>
                 ) : (
                   <>
-                    <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                    <Eye className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                     <span>Eyes open</span>
                   </>
                 )}
               </Badge>
             ) : (
-              <Badge variant="neutral" className="shrink-0">No signal</Badge>
+              <Badge variant="neutral" className="w-full justify-center py-1">
+                No signal
+              </Badge>
             )}
           </div>
 
@@ -184,16 +190,19 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
           </div>
         </div>
 
-        {/* Head Direction State */}
-        <div className="rounded-md border border-border bg-background p-3.5 flex flex-col justify-between gap-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-label font-semibold text-on-surface">Head Direction</span>
+        {/* Head Direction State Sub-Card */}
+        <div className="rounded-md border border-border bg-background p-3.5 space-y-2.5">
+          <span className="text-caption font-semibold uppercase tracking-wider text-on-surface-muted block">
+            Head Direction
+          </span>
+
+          <div className="flex items-center">
             {faceDetected ? (
               <Badge
                 variant={isHeadDeviated ? 'event-head' : 'neutral'}
-                className="tabular-nums shrink-0 whitespace-nowrap"
+                className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center"
               >
-                <Compass className="w-3.5 h-3.5" aria-hidden="true" />
+                <Compass className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                 <span>
                   {isHeadDeviated
                     ? `Head turned${formattedHeadDurationSec ? ` ${formattedHeadDurationSec}` : ''}`
@@ -201,7 +210,9 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
                 </span>
               </Badge>
             ) : (
-              <Badge variant="neutral" className="shrink-0">No signal</Badge>
+              <Badge variant="neutral" className="w-full justify-center py-1">
+                No signal
+              </Badge>
             )}
           </div>
 
