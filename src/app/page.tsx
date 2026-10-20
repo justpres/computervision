@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Shield, Sliders } from 'lucide-react';
+import { Sliders, User } from 'lucide-react';
 import { useSessionState } from '@/lib/session/use-session-state';
 import { useCamera } from '@/lib/camera/use-camera';
 import { useFaceDetection } from '@/lib/detection/use-face-detection';
 import { useDetectionSettings } from '@/lib/settings/settings-store';
+import { useSupabaseAuth } from '@/lib/supabase/use-supabase-auth';
 import {
   createInitialSessionEventEngineState,
   processSessionFrame,
@@ -20,10 +21,29 @@ import { CameraPreview } from '@/components/camera/camera-preview';
 import { LiveStatusCard } from '@/components/session/live-status-card';
 import { EventFeed } from '@/components/session/event-feed';
 import { SettingsModal } from '@/components/session/settings-modal';
+import { StudentLoginView } from '@/components/auth/student-login-view';
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = window.sessionStorage?.getItem('study_tracker_guest_mode');
+      if (saved === 'true') {
+        setIsGuestMode(true);
+      }
+    }
+  }, []);
+
+  const {
+    status: authStatus,
+    email: authEmail,
+    signInWithEmail,
+    signUpWithEmail,
+    signOut,
+  } = useSupabaseAuth();
 
   const {
     status: sessionStatus,
@@ -136,6 +156,51 @@ export default function Home() {
     stopSession();
   }, [stopCamera, stopSession]);
 
+  const handleSignOut = useCallback(async () => {
+    if (isMonitoring) {
+      handleStopSession();
+    }
+    if (authEmail) {
+      await signOut();
+    }
+    setIsGuestMode(false);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage?.removeItem('study_tracker_guest_mode');
+    }
+  }, [authEmail, isMonitoring, handleStopSession, signOut]);
+
+  if (!authEmail && !isGuestMode) {
+    return (
+      <main className="min-h-screen bg-background text-on-surface">
+        {/* Top Header */}
+        <header className="border-b border-border bg-surface px-4 py-3 sm:px-6">
+          <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <h1 className="text-h3 font-semibold text-on-surface">
+                Study Session Monitor
+              </h1>
+              <span className="hidden sm:inline-flex rounded-full bg-experimental-container px-2.5 py-0.5 text-caption font-semibold text-experimental">
+                Phase 1 Experimental
+              </span>
+            </div>
+          </div>
+        </header>
+
+        <StudentLoginView
+          onSignIn={signInWithEmail}
+          onSignUp={signUpWithEmail}
+          onContinueAsGuest={() => {
+            setIsGuestMode(true);
+            if (typeof window !== 'undefined') {
+              window.sessionStorage?.setItem('study_tracker_guest_mode', 'true');
+            }
+          }}
+          isLoading={authStatus === 'loading'}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-background text-on-surface">
       {/* Top Header / Navigation Bar */}
@@ -155,11 +220,28 @@ export default function Home() {
             </span>
           </div>
 
-          {/* Persistent Monitoring Indicator (Von Restorff element) */}
-          <MonitoringIndicator
-            isMonitoring={isMonitoring}
-            elapsedTime={formattedElapsedTime}
-          />
+          <div className="flex items-center gap-3">
+            {/* Student Account / Guest Pill & Sign Out */}
+            <div className="flex items-center gap-2 text-caption text-on-surface-muted bg-background border border-border px-2.5 py-1 rounded-md">
+              <User className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+              <span className="font-medium text-on-surface">
+                {authEmail || 'Guest Student'}
+              </span>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="ml-1 text-caption text-on-surface-muted hover:text-primary transition-colors underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+              >
+                Sign out
+              </button>
+            </div>
+
+            {/* Persistent Monitoring Indicator */}
+            <MonitoringIndicator
+              isMonitoring={isMonitoring}
+              elapsedTime={formattedElapsedTime}
+            />
+          </div>
         </div>
       </header>
 
@@ -279,37 +361,6 @@ export default function Home() {
                   <Sliders className="w-4 h-4" aria-hidden="true" />
                   Detection settings
                 </Button>
-              </div>
-            </section>
-
-            {/* Privacy Safeguards Panel */}
-            <section
-              aria-labelledby="privacy-notice-heading"
-              className="rounded-lg border border-border bg-surface p-5 space-y-3"
-            >
-              <div className="flex items-center gap-2 text-primary">
-                <Shield className="w-4 h-4 text-primary" aria-hidden="true" />
-                <h3
-                  id="privacy-notice-heading"
-                  className="text-label text-primary uppercase tracking-wide"
-                >
-                  Privacy &amp; Data Safeguards
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-body-sm text-on-surface-muted">
-                <div className="rounded-md bg-background p-3 border border-border space-y-0.5">
-                  <strong className="text-on-surface text-caption font-semibold block">Zero Video Stored</strong>
-                  <p className="text-caption">No video or photos are saved or uploaded.</p>
-                </div>
-                <div className="rounded-md bg-background p-3 border border-border space-y-0.5">
-                  <strong className="text-on-surface text-caption font-semibold block">Web Worker Inference</strong>
-                  <p className="text-caption">Background thread keeps the UI smooth and lag-free.</p>
-                </div>
-                <div className="rounded-md bg-background p-3 border border-border space-y-0.5">
-                  <strong className="text-on-surface text-caption font-semibold block">Immediate Stop</strong>
-                  <p className="text-caption">Camera hardware LED shuts off instantly on stop.</p>
-                </div>
               </div>
             </section>
           </div>

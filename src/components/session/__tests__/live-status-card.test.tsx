@@ -32,7 +32,7 @@ describe('LiveStatusCard Component', () => {
     );
 
     expect(screen.getByText('Live Detection')).toBeDefined();
-    expect(screen.getByText('Worker Active')).toBeDefined();
+    expect(screen.getByText('Detection ready')).toBeDefined();
     expect(screen.getByText('Looking for face...')).toBeDefined();
     expect(
       screen.getByText(/Please ensure your face is well-lit/)
