@@ -36,7 +36,7 @@ describe('LiveStatusCard Component', () => {
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
 
-  it('renders seeking state when active but no face detected, with Stop button and elapsed time', () => {
+  it('renders seeking state in header when active but no face detected, with Stop button and elapsed time', () => {
     const onStop = vi.fn();
 
     render(
@@ -52,9 +52,8 @@ describe('LiveStatusCard Component', () => {
 
     expect(screen.getByText('Active Session')).toBeDefined();
     expect(screen.getByText('01:23')).toBeDefined();
-    expect(screen.getByText('Detection ready')).toBeDefined();
-    expect(screen.getByText('Looking for face')).toBeDefined();
-    expect(screen.getByText('Seeking')).toBeDefined();
+    expect(screen.getByText('Ready')).toBeDefined();
+    expect(screen.getByText('Looking for face...')).toBeDefined();
 
     const stopBtn = screen.getByRole('button', { name: /Stop study session immediately/i });
     expect(stopBtn).toBeDefined();
@@ -78,7 +77,6 @@ describe('LiveStatusCard Component', () => {
     );
 
     expect(screen.getByText('Face in view')).toBeDefined();
-    expect(screen.getByText('Present')).toBeDefined();
     expect(screen.getByText('Eyes open')).toBeDefined();
     expect(screen.getByText('Head centered')).toBeDefined();
     expect(screen.getByText('Blink level')).toBeDefined();

@@ -59,9 +59,8 @@ const DEFAULT_COUNTS: SessionEventCounts = {
 /**
  * Unified Live Session & Status Card:
  * - Standby: "Ready to Start" card with primary Start action, privacy disclosures, and settings.
- * - Active: "Active Session" card with Stop action, session duration, balanced 3-column signals grid
- *   (Face | Eye State | Head Direction), event counts, response time, and settings trigger.
- * - Eliminates oversized banners and ensures compact, balanced proportions across cards.
+ * - Active: "Active Session" card with Stop action, session duration, live Face status pill in header,
+ *   2 generous columns for Eye State and Head Direction (zero text clipping), event counts, and settings.
  * - WCAG 2.1 AAA Enhanced contrast with event-eyes, event-head, and event-away tokens.
  * - Fully accessible with role="status" and aria-live="polite".
  */
@@ -177,23 +176,48 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
         className
       )}
     >
-      {/* Top Header: Title, State, Elapsed Duration & Stop Action */}
+      {/* Top Header: Title, Face Status Pill, Elapsed Duration & Stop Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h3 className="text-h3 font-semibold text-on-surface">Active Session</h3>
+
+            {/* Face Status Pill */}
             <span
               className={cn(
-                'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-caption font-semibold',
-                isWorkerReady
+                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption font-semibold transition-colors',
+                faceDetected
                   ? 'bg-success-container text-success'
                   : 'bg-caution-container text-caution'
               )}
             >
-              <Cpu className="w-3.5 h-3.5" aria-hidden="true" />
-              {isWorkerReady ? 'Detection ready' : 'Starting...'}
+              {faceDetected ? (
+                <>
+                  <UserCheck className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                  <span>Face in view</span>
+                </>
+              ) : (
+                <>
+                  <UserX className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                  <span>Looking for face...</span>
+                </>
+              )}
+            </span>
+
+            {/* Worker Engine State */}
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-medium',
+                isWorkerReady
+                  ? 'bg-background text-on-surface-muted border border-border'
+                  : 'bg-caution-container text-caution'
+              )}
+            >
+              <Cpu className="w-3 h-3" aria-hidden="true" />
+              {isWorkerReady ? 'Ready' : 'Starting...'}
             </span>
           </div>
+
           <p className="text-caption text-on-surface-muted">
             Elapsed duration:{' '}
             <strong className="text-primary font-semibold tabular-nums">
@@ -208,7 +232,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
             variant="danger"
             size="default"
             onClick={onStop}
-            className="w-full sm:w-auto min-w-[140px] gap-2 font-semibold"
+            className="w-full sm:w-auto min-w-[140px] gap-2 font-semibold self-start sm:self-auto shrink-0"
             aria-label="Stop study session immediately"
           >
             <Square className="w-4 h-4 fill-current" aria-hidden="true" />
@@ -217,41 +241,8 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
         )}
       </div>
 
-      {/* Balanced 3-Column Signals Grid: Face | Eye State | Head Direction */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Face State Sub-Card */}
-        <div className="rounded-md border border-border bg-background p-3.5 space-y-2.5">
-          <span className="text-caption font-semibold uppercase tracking-wider text-on-surface-muted block">
-            Face
-          </span>
-
-          <div className="flex items-center">
-            <Badge
-              variant={faceDetected ? 'success' : 'caution'}
-              className="tabular-nums text-body-sm py-1 px-2.5 w-full justify-center text-center truncate"
-            >
-              {faceDetected ? (
-                <>
-                  <UserCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
-                  <span>Face in view</span>
-                </>
-              ) : (
-                <>
-                  <UserX className="w-4 h-4 shrink-0" aria-hidden="true" />
-                  <span>Looking for face</span>
-                </>
-              )}
-            </Badge>
-          </div>
-
-          <div className="pt-2 border-t border-border/50 flex items-center justify-between text-caption text-on-surface-muted">
-            <span>Signal</span>
-            <span className="font-semibold text-on-surface">
-              {faceDetected ? 'Present' : 'Seeking'}
-            </span>
-          </div>
-        </div>
-
+      {/* Observable Signals: 2 Wide Equal Columns (Eye State & Head Direction) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Eye Closure State Sub-Card */}
         <div className="rounded-md border border-border bg-background p-3.5 space-y-2.5">
           <span className="text-caption font-semibold uppercase tracking-wider text-on-surface-muted block">
@@ -262,7 +253,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
             {faceDetected ? (
               <Badge
                 variant={effectiveEyeClosed ? 'event-eyes' : 'neutral'}
-                className="tabular-nums text-body-sm py-1 px-2.5 w-full justify-center text-center truncate"
+                className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center"
               >
                 {effectiveEyeClosed ? (
                   <>
@@ -314,7 +305,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
                       ? 'event-head'
                       : 'neutral'
                 }
-                className="tabular-nums text-body-sm py-1 px-2.5 w-full justify-center text-center truncate"
+                className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center"
               >
                 <Compass className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>
