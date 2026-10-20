@@ -41,6 +41,9 @@ export const DETECTION_DEFAULTS = {
   /** Head turned when absolute yaw angle exceeds this threshold (degrees) */
   headTurnYawAngleDegrees: 30,
 
+  /** Head tilted when absolute pitch angle exceeds this threshold (degrees) */
+  headTiltPitchAngleDegrees: 25,
+
   /** Looking-away event created when head turned exceeds yaw threshold for this duration (milliseconds) */
   lookingAwayDurationMs: 3000,
 
