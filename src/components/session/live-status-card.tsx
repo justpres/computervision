@@ -58,10 +58,10 @@ const DEFAULT_COUNTS: SessionEventCounts = {
 
 /**
  * Unified Live Session & Status Card:
- * - In standby: renders the "Ready to Start" card with primary Start action, privacy facts, and settings.
- * - When active: renders the "Active Session" card with Stop action, session duration, face status,
- *   observable signals, counts, response time, and detection settings.
- * - Eliminates duplicate cards and height disparity across columns.
+ * - Standby: "Ready to Start" card with primary Start action, privacy disclosures, and settings.
+ * - Active: "Active Session" card with Stop action, session duration, balanced 3-column signals grid
+ *   (Face | Eye State | Head Direction), event counts, response time, and settings trigger.
+ * - Eliminates oversized banners and ensures compact, balanced proportions across cards.
  * - WCAG 2.1 AAA Enhanced contrast with event-eyes, event-head, and event-away tokens.
  * - Fully accessible with role="status" and aria-live="polite".
  */
@@ -217,45 +217,41 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
         )}
       </div>
 
-      {/* Primary Detection Signal: Face Detected */}
-      <div
-        className={cn(
-          'flex items-center gap-3 p-3.5 rounded-md border transition-colors motion-reduce:transition-none',
-          faceDetected
-            ? 'bg-success-container/40 border-success/30 text-on-surface'
-            : 'bg-background border-border text-on-surface-muted'
-        )}
-      >
-        <div
-          className={cn(
-            'w-9 h-9 rounded-full flex items-center justify-center shrink-0',
-            faceDetected
-              ? 'bg-success-container text-success'
-              : 'bg-surface border border-border text-on-surface-muted'
-          )}
-          aria-hidden="true"
-        >
-          {faceDetected ? (
-            <UserCheck className="w-4 h-4" />
-          ) : (
-            <UserX className="w-4 h-4" />
-          )}
-        </div>
+      {/* Balanced 3-Column Signals Grid: Face | Eye State | Head Direction */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Face State Sub-Card */}
+        <div className="rounded-md border border-border bg-background p-3.5 space-y-2.5">
+          <span className="text-caption font-semibold uppercase tracking-wider text-on-surface-muted block">
+            Face
+          </span>
 
-        <div className="space-y-0.5">
-          <div className="text-label font-semibold">
-            {faceDetected ? 'Face detected' : 'Looking for face...'}
+          <div className="flex items-center">
+            <Badge
+              variant={faceDetected ? 'success' : 'caution'}
+              className="tabular-nums text-body-sm py-1 px-2.5 w-full justify-center text-center truncate"
+            >
+              {faceDetected ? (
+                <>
+                  <UserCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>Face in view</span>
+                </>
+              ) : (
+                <>
+                  <UserX className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>Looking for face</span>
+                </>
+              )}
+            </Badge>
           </div>
-          <p className="text-caption text-on-surface-muted">
-            {faceDetected
-              ? 'One person detected in view. Landmark analysis running in background.'
-              : 'Please ensure your face is well-lit and facing the front laptop camera.'}
-          </p>
-        </div>
-      </div>
 
-      {/* Observable Signals Grid: Eye Closure & Head Direction */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="pt-2 border-t border-border/50 flex items-center justify-between text-caption text-on-surface-muted">
+            <span>Signal</span>
+            <span className="font-semibold text-on-surface">
+              {faceDetected ? 'Present' : 'Seeking'}
+            </span>
+          </div>
+        </div>
+
         {/* Eye Closure State Sub-Card */}
         <div className="rounded-md border border-border bg-background p-3.5 space-y-2.5">
           <span className="text-caption font-semibold uppercase tracking-wider text-on-surface-muted block">
@@ -266,7 +262,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
             {faceDetected ? (
               <Badge
                 variant={effectiveEyeClosed ? 'event-eyes' : 'neutral'}
-                className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center"
+                className="tabular-nums text-body-sm py-1 px-2.5 w-full justify-center text-center truncate"
               >
                 {effectiveEyeClosed ? (
                   <>
@@ -318,7 +314,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
                       ? 'event-head'
                       : 'neutral'
                 }
-                className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center"
+                className="tabular-nums text-body-sm py-1 px-2.5 w-full justify-center text-center truncate"
               >
                 <Compass className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>

@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
  * - info: bg info-container (#E4E9FB), text info (#2A3F9E)
  * - experimental: bg experimental-container (#EDE7FA), text experimental (#4B2F94)
  * - success: bg success-container (#E2F4EA), text success (#16643D)
+ * - caution: bg caution-container (#FFF1CF), text caution (#6B4500)
  * - neutral: bg background (#F6F8F9), text on-surface-muted (#465866), border border (#D5DEE4)
  */
 export const badgeVariants = cva(
@@ -26,6 +27,7 @@ export const badgeVariants = cva(
         info: 'bg-info-container text-info',
         experimental: 'bg-experimental-container text-experimental',
         success: 'bg-success-container text-success',
+        caution: 'bg-caution-container text-caution',
         neutral: 'bg-background text-on-surface-muted border border-border',
       },
     },

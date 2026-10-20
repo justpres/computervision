@@ -53,8 +53,8 @@ describe('LiveStatusCard Component', () => {
     expect(screen.getByText('Active Session')).toBeDefined();
     expect(screen.getByText('01:23')).toBeDefined();
     expect(screen.getByText('Detection ready')).toBeDefined();
-    expect(screen.getByText('Looking for face...')).toBeDefined();
-    expect(screen.getByText(/Please ensure your face is well-lit/)).toBeDefined();
+    expect(screen.getByText('Looking for face')).toBeDefined();
+    expect(screen.getByText('Seeking')).toBeDefined();
 
     const stopBtn = screen.getByRole('button', { name: /Stop study session immediately/i });
     expect(stopBtn).toBeDefined();
@@ -62,7 +62,7 @@ describe('LiveStatusCard Component', () => {
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 
-  it('renders "Face detected", "Eyes open", "Head centered", and latency when face is present', () => {
+  it('renders "Face in view", "Eyes open", "Head centered", and latency when face is present', () => {
     render(
       <LiveStatusCard
         isMonitoring={true}
@@ -77,8 +77,8 @@ describe('LiveStatusCard Component', () => {
       />
     );
 
-    expect(screen.getByText('Face detected')).toBeDefined();
-    expect(screen.getByText(/One person detected in view/)).toBeDefined();
+    expect(screen.getByText('Face in view')).toBeDefined();
+    expect(screen.getByText('Present')).toBeDefined();
     expect(screen.getByText('Eyes open')).toBeDefined();
     expect(screen.getByText('Head centered')).toBeDefined();
     expect(screen.getByText('Blink level')).toBeDefined();
