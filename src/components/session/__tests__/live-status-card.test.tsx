@@ -60,7 +60,7 @@ describe('LiveStatusCard Component', () => {
     ).toBeDefined();
     expect(screen.getByText('Eyes open')).toBeDefined();
     expect(screen.getByText('Head centered')).toBeDefined();
-    expect(screen.getByText('Blink level: 12%')).toBeDefined();
+    expect(screen.getByText('Blink level')).toBeDefined(); expect(screen.getByText('12%')).toBeDefined();
     expect(screen.getByText('Yaw 4° · Pitch -2°')).toBeDefined();
     expect(screen.getByText('16 ms')).toBeDefined();
   });
@@ -79,7 +79,7 @@ describe('LiveStatusCard Component', () => {
     );
 
     expect(screen.getByText('Eyes closed 1.4s')).toBeDefined();
-    expect(screen.getByText('Blink level: 78%')).toBeDefined();
+    expect(screen.getByText('Blink level')).toBeDefined(); expect(screen.getByText('78%')).toBeDefined();
   });
 
   it('renders neutral "Head turned" badge with duration and angles when head is turned', () => {
