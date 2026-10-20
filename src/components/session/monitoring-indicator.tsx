@@ -1,5 +1,4 @@
 import React from 'react';
-import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface MonitoringIndicatorProps {
@@ -10,8 +9,8 @@ export interface MonitoringIndicatorProps {
 
 /**
  * Persistent monitoring indicator:
- * - Most emphasized status element so students always know when the camera is active.
- * - Pairs color with an icon and text label (never relies on color alone).
+ * - Single signifier: dot (hollow when off, filled pulse when on) + clear label.
+ * - Non-reliance on color alone (shape/fill + text difference).
  * - Uses tabular figures for elapsed duration.
  * - Accessible live region (aria-live="polite").
  */
@@ -26,37 +25,32 @@ export const MonitoringIndicator: React.FC<MonitoringIndicatorProps> = ({
       aria-live="polite"
       aria-atomic="true"
       className={cn(
-        'inline-flex items-center gap-2.5 h-10 px-4 rounded-full text-label transition-colors select-none',
+        'inline-flex items-center gap-2 h-9 px-3.5 rounded-full text-caption font-semibold transition-colors select-none',
         isMonitoring
-          ? 'bg-primary-container text-on-primary-container border border-primary/20'
+          ? 'bg-primary-container text-on-primary-container border border-primary/25'
           : 'bg-surface text-on-surface-muted border border-border',
         className
       )}
     >
-      {/* Visual status indicator (dot + icon + label) */}
-      <span className="flex items-center gap-2">
-        <span
-          className={cn(
-            'w-2.5 h-2.5 rounded-full shrink-0',
-            isMonitoring ? 'bg-primary animate-pulse' : 'bg-secondary'
-          )}
-          aria-hidden="true"
-        />
-        {isMonitoring ? (
-          <Eye className="w-4 h-4 shrink-0 text-primary" aria-hidden="true" />
-        ) : (
-          <EyeOff className="w-4 h-4 shrink-0 text-on-surface-muted" aria-hidden="true" />
+      {/* Visual status indicator: hollow ring when off, filled dot when on */}
+      <span
+        className={cn(
+          'w-2.5 h-2.5 rounded-full shrink-0',
+          isMonitoring
+            ? 'bg-primary motion-safe:animate-pulse'
+            : 'border-2 border-on-surface-muted'
         )}
-      </span>
+        aria-hidden="true"
+      />
 
-      <span className="font-semibold text-body-sm">
-        {isMonitoring ? 'Monitoring is on' : 'Monitoring is off'}
+      <span className="font-semibold text-caption">
+        {isMonitoring ? 'Monitoring is on' : 'Camera off'}
       </span>
 
       {/* Tabular elapsed duration */}
       {isMonitoring && elapsedTime && (
         <span
-          className="ml-1 pl-2 border-l border-primary/30 font-semibold tabular-nums text-body-sm"
+          className="ml-0.5 pl-2 border-l border-primary/30 font-semibold tabular-nums text-caption"
           aria-label={`Elapsed session time: ${elapsedTime}`}
         >
           {elapsedTime}

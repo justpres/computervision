@@ -17,7 +17,7 @@ describe('StudentLoginView Component', () => {
     expect(screen.getByLabelText(/Student Email/i)).toBeDefined();
     expect(screen.getByLabelText(/Password/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /Sign in to Study Monitor/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /Continue as Guest Tester/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Try without an account/i })).toBeDefined();
   });
 
   it('allows switching between Sign In and Create Account modes', () => {
@@ -105,7 +105,7 @@ describe('StudentLoginView Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Continue as Guest Tester/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Try without an account/i }));
     expect(onContinueAsGuest).toHaveBeenCalledTimes(1);
   });
 });

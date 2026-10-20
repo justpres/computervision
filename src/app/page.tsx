@@ -95,21 +95,7 @@ export default function Home() {
 
   if (!authEmail && !isGuestMode) {
     return (
-      <main className="min-h-screen bg-background text-on-surface">
-        {/* Top Header */}
-        <header className="border-b border-border bg-surface px-4 py-3 sm:px-6">
-          <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <h1 className="text-h3 font-semibold text-on-surface">
-                Study Session Monitor
-              </h1>
-              <span className="hidden sm:inline-flex rounded-full bg-experimental-container px-2.5 py-0.5 text-caption font-semibold text-experimental">
-                Phase 1 Experimental
-              </span>
-            </div>
-          </div>
-        </header>
-
+      <main className="min-h-dvh bg-background text-on-surface">
         <StudentLoginView
           onSignIn={signInWithEmail}
           onSignUp={signUpWithEmail}

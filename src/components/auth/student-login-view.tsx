@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, KeyRound, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import { KeyRound, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface StudentLoginViewProps {
@@ -18,9 +18,10 @@ export interface StudentLoginViewProps {
 }
 
 /**
- * Welcoming student entry view.
- * Provides a clean student sign-in / registration form, plus a single-click
- * "Continue as Guest Tester" option for immediate testing without credentials.
+ * Welcoming student entry view:
+ * - Single-screen layout that never scrolls on 720p/768p or mobile.
+ * - Clean student sign-in / registration form.
+ * - Single-click "Try without an account" option for immediate testing.
  */
 export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
   onSignIn,
@@ -59,22 +60,23 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
   };
 
   return (
-    <div className="mx-auto max-w-md w-full px-4 py-8 sm:py-16 space-y-6">
-      {/* Brand Header */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-container text-primary mb-1">
-          <User className="w-6 h-6" aria-hidden="true" />
+    <div className="min-h-dvh w-full flex items-center justify-center p-4">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-4 shadow-none">
+        {/* Brand Header inside card */}
+        <div className="text-center space-y-1">
+          <div className="flex items-center justify-center gap-2">
+            <h1 className="text-h3 font-semibold text-on-surface">
+              Study Session Monitor
+            </h1>
+            <span className="rounded-full bg-experimental-container px-2 py-0.5 text-[10px] font-semibold text-experimental uppercase tracking-wide">
+              Experimental
+            </span>
+          </div>
+          <p className="text-caption text-on-surface-muted">
+            Sign in to save your sessions, or try immediately.
+          </p>
         </div>
-        <h1 className="text-h1 font-semibold text-on-surface">
-          Study Session Monitor
-        </h1>
-        <p className="text-body-sm text-on-surface-muted max-w-sm mx-auto">
-          Sign in to save and manage your study sessions, or continue as a guest to test immediately.
-        </p>
-      </div>
 
-      {/* Main Card */}
-      <div className="rounded-xl border border-border bg-surface p-6 sm:p-8 space-y-6 shadow-none">
         {/* Mode Toggle */}
         <div
           role="tablist"
@@ -89,9 +91,9 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
               setMode('signin');
               setErrorFeedback(null);
             }}
-            className={`rounded-md py-2 text-label font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`rounded-md py-1.5 text-caption font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               mode === 'signin'
-                ? 'bg-surface text-on-surface shadow-sm'
+                ? 'bg-surface text-on-surface shadow-xs'
                 : 'text-on-surface-muted hover:text-on-surface'
             }`}
           >
@@ -105,9 +107,9 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
               setMode('signup');
               setErrorFeedback(null);
             }}
-            className={`rounded-md py-2 text-label font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`rounded-md py-1.5 text-caption font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               mode === 'signup'
-                ? 'bg-surface text-on-surface shadow-sm'
+                ? 'bg-surface text-on-surface shadow-xs'
                 : 'text-on-surface-muted hover:text-on-surface'
             }`}
           >
@@ -119,7 +121,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
         {errorFeedback && (
           <div
             role="alert"
-            className="flex items-start gap-2.5 rounded-md bg-error-container p-3 text-caption text-on-error-container"
+            className="flex items-start gap-2 rounded-md bg-error-container p-2.5 text-caption text-on-error-container"
           >
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
             <span>{errorFeedback}</span>
@@ -127,11 +129,11 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1">
             <label
               htmlFor="student-email-input"
-              className="text-label text-on-surface block"
+              className="text-caption font-semibold text-on-surface block"
             >
               Student Email
             </label>
@@ -143,32 +145,30 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="student@example.edu"
-              className="w-full rounded-md border border-border-strong bg-background px-3.5 py-2.5 text-body-sm text-on-surface placeholder:text-on-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-on-surface placeholder:text-on-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label
               htmlFor="student-password-input"
-              className="text-label text-on-surface block"
+              className="text-caption font-semibold text-on-surface block"
             >
               Password
             </label>
-            <div className="relative">
-              <input
-                id="student-password-input"
-                type="password"
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-md border border-border-strong bg-background px-3.5 py-2.5 text-body-sm text-on-surface placeholder:text-on-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              />
-            </div>
+            <input
+              id="student-password-input"
+              type="password"
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-on-surface placeholder:text-on-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            />
             {mode === 'signup' && (
-              <span className="text-caption text-on-surface-muted block">
+              <span className="text-[11px] text-on-surface-muted block">
                 Must be at least 6 characters.
               </span>
             )}
@@ -178,7 +178,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
             type="submit"
             variant="primary"
             disabled={isSubmitting || isLoading}
-            className="w-full justify-center gap-2 mt-2"
+            className="w-full justify-center gap-2 mt-1 py-2 font-semibold text-body-sm"
           >
             <KeyRound className="w-4 h-4" aria-hidden="true" />
             <span>
@@ -192,36 +192,29 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
         </form>
 
         {/* Divider */}
-        <div className="relative flex items-center justify-center">
+        <div className="relative flex items-center justify-center my-0.5">
           <div className="w-full border-t border-border" />
-          <span className="bg-surface px-3 text-caption text-on-surface-muted uppercase tracking-wider">
+          <span className="bg-surface px-2 text-[11px] text-on-surface-muted uppercase tracking-wider">
             or
           </span>
         </div>
 
-        {/* Guest Action */}
+        {/* Guest Action & Quiet Footnote */}
         <div className="space-y-2">
           <Button
             type="button"
             variant="secondary"
             onClick={onContinueAsGuest}
             disabled={isSubmitting || isLoading}
-            className="w-full justify-center gap-2 py-3 text-body-sm"
+            className="w-full justify-center py-2 text-body-sm font-semibold"
           >
-            <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
-            <span>Continue as Guest Tester</span>
-            <ArrowRight className="w-4 h-4 text-on-surface-muted ml-1" aria-hidden="true" />
+            Try without an account
           </Button>
-          <p className="text-caption text-on-surface-muted text-center">
-            No registration required. Test all camera and detection features immediately.
+          <p className="text-[11px] text-on-surface-muted text-center leading-normal">
+            No sign-up needed. No video or photos are saved or uploaded.
           </p>
         </div>
       </div>
-
-      {/* Quiet Footnote */}
-      <p className="text-caption text-on-surface-muted text-center max-w-xs mx-auto">
-        Your privacy is protected: no video or photos are saved or uploaded.
-      </p>
     </div>
   );
 };
