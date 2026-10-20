@@ -3,33 +3,33 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #0B6477;
+  --color-primary: #085464;
   --color-on-primary: #FFFFFF;
-  --color-primary-hover: #084E5D;
+  --color-primary-hover: #064350;
   --color-primary-container: #D6EDF1;
   --color-on-primary-container: #06303A;
-  --color-secondary: #465866;
+  --color-secondary: #2F404D;
   --color-background: #F6F8F9;
   --color-surface: #FFFFFF;
   --color-on-surface: #0F1B24;
-  --color-on-surface-muted: #465866;
+  --color-on-surface-muted: #2F404D;
   --color-border: #D5DEE4;
   --color-border-strong: #6F8392;
-  --color-event-eyes: #2A5CAA;
-  --color-event-head: #B45F06;
-  --color-event-away: #6A4BB5;
+  --color-event-eyes: #1D4685;
+  --color-event-head: #7E3E00;
+  --color-event-away: #4A268D;
   --color-caution: #6B4500;
   --color-caution-container: #FFF1CF;
-  --color-info: #2A3F9E;
+  --color-info: #1E338A;
   --color-info-container: #E4E9FB;
   --color-experimental: #4B2F94;
   --color-experimental-container: #EDE7FA;
   --color-success: #16643D;
   --color-success-container: #E2F4EA;
-  --color-error: #B3261E;
+  --color-error: #8C1812;
   --color-on-error: #FFFFFF;
   --color-error-container: #FDECEA;
-  --color-on-error-container: #A3231B;
+  --color-on-error-container: #8C1812;
 }
 
 body {

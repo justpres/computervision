@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserCheck, UserX, Cpu, Activity } from 'lucide-react';
+import { UserCheck, UserX, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface LiveStatusCardProps {
@@ -54,10 +54,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
       )}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-primary animate-pulse" aria-hidden="true" />
-          <h3 className="text-h3 text-on-surface">Live Detection</h3>
-        </div>
+        <h3 className="text-h3 text-on-surface">Live Detection</h3>
 
         {/* Worker Engine State */}
         <span
