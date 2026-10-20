@@ -1,20 +1,25 @@
 import React from 'react';
-import { UserCheck, UserX, Cpu } from 'lucide-react';
+import { UserCheck, UserX, Cpu, Play, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 export interface LiveStatusCardProps {
   isMonitoring: boolean;
   isWorkerReady: boolean;
   faceDetected: boolean;
   processingTimeMs: number;
+  formattedElapsedTime?: string;
+  onStart?: () => void;
+  onStop?: () => void;
   className?: string;
 }
 
 /**
- * Live status card:
+ * Live status & unified session card:
+ * - In standby: "Ready to Start" card with primary Start action and privacy facts.
+ * - When active: "Active Session" card with Stop action, session duration, face status, and response time.
+ * - Balances column heights across the interface and removes duplicate cards.
  * - Neutral wording: "Face detected" / "Looking for face" (never "distracted" or alarms).
- * - Calming colors: success/teal containers when present, neutral slate when seeking.
- * - Live worker performance metrics (inference time) in tabular figures.
  * - Accessible status region (role="status", aria-live="polite").
  */
 export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
@@ -22,23 +27,50 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
   isWorkerReady,
   faceDetected,
   processingTimeMs,
+  formattedElapsedTime = '00:00',
+  onStart,
+  onStop,
   className,
 }) => {
   if (!isMonitoring) {
     return (
       <div
         className={cn(
-          'rounded-lg border border-border bg-surface p-5 space-y-3',
+          'rounded-lg border border-border bg-surface p-5 sm:p-6 space-y-5 shadow-none',
           className
         )}
       >
-        <div className="flex items-center justify-between">
-          <h3 className="text-h3 text-on-surface">Detection Status</h3>
-          <span className="text-caption text-on-surface-muted">Idle</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-h2 font-semibold text-on-surface">Ready to Start</h2>
+            <p className="text-body-sm text-on-surface-muted">
+              Click start to begin private webcam study monitoring.
+            </p>
+          </div>
+
+          {onStart && (
+            <Button
+              variant="primary"
+              size="default"
+              onClick={onStart}
+              className="w-full sm:w-auto min-w-[150px] gap-2 font-semibold"
+              aria-label="Start study session with consent check"
+            >
+              <Play className="w-4 h-4 fill-current" aria-hidden="true" />
+              <span>Start session</span>
+            </Button>
+          )}
         </div>
-        <p className="text-body-sm text-on-surface-muted">
-          Real-time browser detection begins automatically when you start your session.
-        </p>
+
+        <div className="rounded-md border border-border bg-background p-4 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-label text-on-surface-muted">Session Status</span>
+            <span className="text-body-sm font-semibold text-on-surface">Standby</span>
+          </div>
+          <p className="text-body-sm text-on-surface-muted">
+            Your camera only turns on after you review and accept the privacy consent. All detection runs entirely inside your browser.
+          </p>
+        </div>
       </div>
     );
   }
@@ -53,21 +85,43 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
         className
       )}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-h3 text-on-surface">Live Detection</h3>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <h3 className="text-h3 font-semibold text-on-surface">Active Session</h3>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-caption font-semibold',
+                isWorkerReady
+                  ? 'bg-success-container text-success'
+                  : 'bg-caution-container text-caution'
+              )}
+            >
+              <Cpu className="w-3.5 h-3.5" aria-hidden="true" />
+              {isWorkerReady ? 'Detection ready' : 'Starting...'}
+            </span>
+          </div>
+          <p className="text-caption text-on-surface-muted">
+            Elapsed duration:{' '}
+            <strong className="text-primary font-semibold tabular-nums">
+              {formattedElapsedTime}
+            </strong>{' '}
+            · Monitored locally
+          </p>
+        </div>
 
-        {/* Worker Engine State */}
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption font-semibold',
-            isWorkerReady
-              ? 'bg-success-container text-success'
-              : 'bg-caution-container text-caution'
-          )}
-        >
-          <Cpu className="w-3.5 h-3.5" aria-hidden="true" />
-          {isWorkerReady ? 'Detection ready' : 'Starting detection...'}
-        </span>
+        {onStop && (
+          <Button
+            variant="danger"
+            size="default"
+            onClick={onStop}
+            className="w-full sm:w-auto min-w-[140px] gap-2 font-semibold"
+            aria-label="Stop study session immediately"
+          >
+            <Square className="w-4 h-4 fill-current" aria-hidden="true" />
+            <span>Stop session</span>
+          </Button>
+        )}
       </div>
 
       {/* Primary Detection Signal: Face Detected */}
