@@ -21,6 +21,9 @@ export interface UseFaceDetectionReturn {
   isWorkerReady: boolean;
   faceDetected: boolean;
   eyeBlinkScore: number;
+  eyeBlinkLeft: number;
+  eyeBlinkRight: number;
+  lastFrameTimestamp: number;
   processingTimeMs: number;
   transformationMatrix: number[] | null;
   error: string | null;
@@ -39,13 +42,19 @@ export function useFaceDetection({
   const [isWorkerReady, setIsWorkerReady] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [eyeBlinkScore, setEyeBlinkScore] = useState(0);
+  const [eyeBlinkLeft, setEyeBlinkLeft] = useState(0);
+  const [eyeBlinkRight, setEyeBlinkRight] = useState(0);
+  const [lastFrameTimestamp, setLastFrameTimestamp] = useState(0);
   const [processingTimeMs, setProcessingTimeMs] = useState(0);
   const [transformationMatrix, setTransformationMatrix] = useState<number[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const workerRef = useRef<Worker | null>(null);
   const isWorkerBusyRef = useRef(false);
+  const isMonitoringRef = useRef(isMonitoring);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  isMonitoringRef.current = isMonitoring;
 
   // Initialize Web Worker
   useEffect(() => {
@@ -71,16 +80,24 @@ export function useFaceDetection({
           setError(response.error);
         } else if (response.type === 'FRAME_RESULT') {
           isWorkerBusyRef.current = false;
+          if (!isMonitoringRef.current) {
+            return;
+          }
           const { data } = response;
           setFaceDetected(data.faceDetected);
           setProcessingTimeMs(data.processingTimeMs);
           setTransformationMatrix(data.transformationMatrix);
+          setLastFrameTimestamp(data.timestamp);
 
           if (data.faceDetected) {
+            setEyeBlinkLeft(data.eyeBlinkLeft);
+            setEyeBlinkRight(data.eyeBlinkRight);
             const avgBlink =
               Math.round(((data.eyeBlinkLeft + data.eyeBlinkRight) / 2) * 1000) / 1000;
             setEyeBlinkScore(avgBlink);
           } else {
+            setEyeBlinkLeft(0);
+            setEyeBlinkRight(0);
             setEyeBlinkScore(0);
           }
         } else if (response.type === 'FRAME_ERROR') {
@@ -160,6 +177,10 @@ export function useFaceDetection({
       }
       setFaceDetected(false);
       setEyeBlinkScore(0);
+      setEyeBlinkLeft(0);
+      setEyeBlinkRight(0);
+      setLastFrameTimestamp(0);
+      setTransformationMatrix(null);
       setProcessingTimeMs(0);
       return;
     }
@@ -179,6 +200,9 @@ export function useFaceDetection({
     isWorkerReady,
     faceDetected,
     eyeBlinkScore,
+    eyeBlinkLeft,
+    eyeBlinkRight,
+    lastFrameTimestamp,
     processingTimeMs,
     transformationMatrix,
     error,
