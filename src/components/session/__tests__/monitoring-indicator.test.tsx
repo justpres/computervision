@@ -4,10 +4,11 @@ import { render, screen } from '@testing-library/react';
 import { MonitoringIndicator } from '../monitoring-indicator';
 
 describe('MonitoringIndicator Component', () => {
-  it('renders "Monitoring is off" when inactive', () => {
-    render(<MonitoringIndicator isMonitoring={false} />);
+  it('renders "Camera off" when inactive with no duplicate icons', () => {
+    const { container } = render(<MonitoringIndicator isMonitoring={false} />);
 
-    expect(screen.getByText('Monitoring is off')).toBeDefined();
+    expect(screen.getByText('Camera off')).toBeDefined();
+    expect(container.querySelector('svg')).toBeNull();
     const statusContainer = screen.getByRole('status');
     expect(statusContainer.getAttribute('aria-live')).toBe('polite');
   });

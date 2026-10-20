@@ -14,9 +14,6 @@ describe('CameraPreview Component', () => {
     );
 
     expect(screen.getByText('Camera is off')).toBeDefined();
-    expect(
-      screen.getByText(/Preview will turn on here when your study session begins/)
-    ).toBeDefined();
   });
 
   it('renders loading state when camera is requesting permission', () => {
@@ -28,10 +25,10 @@ describe('CameraPreview Component', () => {
       />
     );
 
-    expect(screen.getByText('Connecting to camera')).toBeDefined();
+    expect(screen.getByText('Connecting to camera...')).toBeDefined();
   });
 
-  it('renders video element with mirrored scale-x-[-1] styling when active', () => {
+  it('renders clean video element with mirrored scale-x-[-1] styling and zero text overlays when active', () => {
     const mockStream = {} as MediaStream;
 
     render(
@@ -45,8 +42,8 @@ describe('CameraPreview Component', () => {
     const video = screen.getByLabelText('Live webcam video preview (mirrored)');
     expect(video).toBeDefined();
     expect(video.className).toContain('scale-x-[-1]');
-    expect(screen.getByText('Live preview')).toBeDefined();
-    expect(screen.getByText('Processed locally')).toBeDefined();
+    expect(screen.queryByText('Live preview')).toBeNull();
+    expect(screen.queryByText('Processed locally')).toBeNull();
   });
 
   it('renders calm caution card and retry action when permission is denied', () => {
