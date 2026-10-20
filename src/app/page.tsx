@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Sliders, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { useSessionState } from '@/lib/session/use-session-state';
 import { useCamera } from '@/lib/camera/use-camera';
 import { useFaceDetection } from '@/lib/detection/use-face-detection';
@@ -13,9 +13,7 @@ import {
   finalizeSessionEvents,
   type SessionEventEngineState,
 } from '@/lib/detection/session-event-engine';
-import { Button } from '@/components/ui/button';
 import { MonitoringIndicator } from '@/components/session/monitoring-indicator';
-import { SessionControls } from '@/components/session/session-controls';
 import { ConsentModal } from '@/components/session/consent-modal';
 import { CameraPreview } from '@/components/camera/camera-preview';
 import { LiveStatusCard } from '@/components/session/live-status-card';
@@ -259,14 +257,18 @@ export default function Home() {
             <EventFeed events={engineState.events} />
           </div>
 
-          {/* Right Column: Live Status & Controls */}
+          {/* Right Column: Unified Live Status & Controls */}
           <div className="lg:col-span-6 space-y-5">
-            {/* Real-time Detection Status Card */}
             <LiveStatusCard
               isMonitoring={isMonitoring}
               isWorkerReady={isWorkerReady}
               faceDetected={faceDetected}
               processingTimeMs={processingTimeMs}
+              formattedElapsedTime={formattedElapsedTime}
+              onStart={requestStart}
+              onStop={handleStopSession}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              settingsSummary={`Eyes ${(settings.eyeClosedScoreThreshold * 100).toFixed(0)}% (${(settings.eyeClosedDurationMs / 1000).toFixed(1)}s) · Yaw ${settings.headTurnYawAngleDegrees}° · Pitch ${settings.headTiltPitchAngleDegrees}°`}
               isEyesClosed={engineState.eyeClosure.isClosed}
               eyeClosureDurationMs={engineState.eyeClosure.continuousDurationMs}
               eyeBlinkScore={eyeBlinkScore}
@@ -276,79 +278,6 @@ export default function Home() {
               headYawDegrees={engineState.headAngles?.yawDegrees ?? null}
               headPitchDegrees={engineState.headAngles?.pitchDegrees ?? null}
             />
-
-            {/* Session Control Card */}
-            <section
-              aria-labelledby="session-overview-heading"
-              className="rounded-lg border border-border bg-surface p-6 sm:p-7 space-y-6 shadow-none"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="space-y-1">
-                  <h2
-                    id="session-overview-heading"
-                    className="text-h2 font-semibold text-on-surface"
-                  >
-                    {isMonitoring ? 'Active Session' : 'Ready to Start'}
-                  </h2>
-                  <p className="text-body-sm text-on-surface-muted">
-                    {isMonitoring
-                      ? 'Camera stream active. Observable signs monitored locally.'
-                      : 'Click start to begin private webcam study monitoring.'}
-                  </p>
-                </div>
-
-                {/* Primary Action Button (Start / Stop) */}
-                <SessionControls
-                  isMonitoring={isMonitoring}
-                  onStart={requestStart}
-                  onStop={handleStopSession}
-                />
-              </div>
-
-              {/* Status Box */}
-              <div className="rounded-md border border-border bg-background p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-label text-on-surface-muted">Session Status</span>
-                  <span className="text-body-sm font-semibold text-on-surface">
-                    {isMonitoring ? 'Active' : 'Standby'}
-                  </span>
-                </div>
-
-                {isMonitoring ? (
-                  <div className="text-body-md text-on-surface space-y-1 pt-1">
-                    <p>
-                      Elapsed duration:{' '}
-                      <span className="font-semibold tabular-nums text-primary">
-                        {formattedElapsedTime}
-                      </span>
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-body-sm text-on-surface-muted">
-                    Your camera will only turn on after you review and accept the privacy consent.
-                  </p>
-                )}
-              </div>
-
-              {/* Secondary Settings Action (Visual Hierarchy #5: quiet, reachable, never competing) */}
-              <div className="flex items-center justify-between pt-2 border-t border-border">
-                <div className="text-caption text-on-surface-muted tabular-nums">
-                  Thresholds: Eyes {(settings.eyeClosedScoreThreshold * 100).toFixed(0)}% (
-                  {(settings.eyeClosedDurationMs / 1000).toFixed(1)}s) · Yaw{' '}
-                  {settings.headTurnYawAngleDegrees}° · Pitch{' '}
-                  {settings.headTiltPitchAngleDegrees}°
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="gap-2"
-                >
-                  <Sliders className="w-4 h-4" aria-hidden="true" />
-                  Detection settings
-                </Button>
-              </div>
-            </section>
           </div>
         </div>
       </div>

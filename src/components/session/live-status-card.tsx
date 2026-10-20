@@ -6,80 +6,165 @@ import {
   Eye,
   EyeOff,
   Compass,
+  Clock,
+  Play,
+  Square,
+  Sliders,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+
+export interface SessionEventCounts {
+  eyesClosed: number;
+  longEyeClosure: number;
+  headTurned: number;
+  lookingAway: number;
+  total: number;
+}
 
 export interface LiveStatusCardProps {
   isMonitoring: boolean;
   isWorkerReady: boolean;
   faceDetected: boolean;
   processingTimeMs: number;
+  formattedElapsedTime?: string;
+  onStart?: () => void;
+  onStop?: () => void;
+  onOpenSettings?: () => void;
+  settingsSummary?: string;
   isEyesClosed?: boolean;
+  isLongEyeClosure?: boolean;
   eyeClosureDurationMs?: number;
   eyeBlinkScore?: number;
   isHeadTurned?: boolean;
   isHeadTilted?: boolean;
+  isLookingAway?: boolean;
   headPoseDurationMs?: number;
+  lookingAwayDurationMs?: number;
   headYawDegrees?: number | null;
   headPitchDegrees?: number | null;
+  eventCounts?: SessionEventCounts;
   className?: string;
 }
 
+const DEFAULT_COUNTS: SessionEventCounts = {
+  eyesClosed: 0,
+  longEyeClosure: 0,
+  headTurned: 0,
+  lookingAway: 0,
+  total: 0,
+};
+
 /**
- * Live status card:
- * - Neutral wording: "Face detected" / "Looking for face", "Eyes open" / "Eyes closed",
- *   "Head centered" / "Head turned" (never "distracted", "drowsy", or alarms).
- * - WCAG 2.1 AAA Enhanced contrast with event-eyes and event-head tokens.
- * - Single functional icon per badge, eliminating duplicate iconography.
- * - Purposeful vertical stacking: label on top, full-width badge in the middle,
- *   and telemetry at the bottom completely prevents horizontal overflow or border collisions.
- * - Live worker performance metrics (inference time) in tabular figures.
- * - Accessible status region (role="status", aria-live="polite").
+ * Unified Live Session & Status Card:
+ * - In standby: renders the "Ready to Start" card with primary Start action, privacy facts, and settings.
+ * - When active: renders the "Active Session" card with Stop action, session duration, face status,
+ *   observable signals, counts, response time, and detection settings.
+ * - Eliminates duplicate cards and height disparity across columns.
+ * - WCAG 2.1 AAA Enhanced contrast with event-eyes, event-head, and event-away tokens.
+ * - Fully accessible with role="status" and aria-live="polite".
  */
 export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
   isMonitoring,
   isWorkerReady,
   faceDetected,
   processingTimeMs,
+  formattedElapsedTime = '00:00',
+  onStart,
+  onStop,
+  onOpenSettings,
+  settingsSummary,
   isEyesClosed = false,
+  isLongEyeClosure = false,
   eyeClosureDurationMs = 0,
   eyeBlinkScore = 0,
   isHeadTurned = false,
   isHeadTilted = false,
+  isLookingAway = false,
   headPoseDurationMs = 0,
+  lookingAwayDurationMs = 0,
   headYawDegrees = null,
   headPitchDegrees = null,
+  eventCounts = DEFAULT_COUNTS,
   className,
 }) => {
   if (!isMonitoring) {
     return (
       <div
         className={cn(
-          'rounded-lg border border-border bg-surface p-5 space-y-3',
+          'rounded-lg border border-border bg-surface p-5 sm:p-6 space-y-5 shadow-none',
           className
         )}
       >
-        <div className="flex items-center justify-between">
-          <h3 className="text-h3 text-on-surface">Detection Status</h3>
-          <span className="text-caption text-on-surface-muted">Idle</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-h2 font-semibold text-on-surface">Ready to Start</h2>
+            <p className="text-body-sm text-on-surface-muted">
+              Click start to begin private webcam study monitoring.
+            </p>
+          </div>
+
+          {onStart && (
+            <Button
+              variant="primary"
+              size="default"
+              onClick={onStart}
+              className="w-full sm:w-auto min-w-[150px] gap-2 font-semibold"
+              aria-label="Start study session with consent check"
+            >
+              <Play className="w-4 h-4 fill-current" aria-hidden="true" />
+              <span>Start session</span>
+            </Button>
+          )}
         </div>
-        <p className="text-body-sm text-on-surface-muted">
-          Real-time browser detection begins automatically when you start your session.
-        </p>
+
+        <div className="rounded-md border border-border bg-background p-4 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-label text-on-surface-muted">Session Status</span>
+            <span className="text-body-sm font-semibold text-on-surface">Standby</span>
+          </div>
+          <p className="text-body-sm text-on-surface-muted">
+            Your camera only turns on after you review and accept the privacy consent. All detection runs entirely inside your browser.
+          </p>
+        </div>
+
+        {onOpenSettings && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border text-caption text-on-surface-muted">
+            {settingsSummary ? (
+              <span className="tabular-nums">Thresholds: {settingsSummary}</span>
+            ) : (
+              <span>Adjustable detection sensitivity</span>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onOpenSettings}
+              className="gap-2 h-8 px-3 text-caption self-start sm:self-auto"
+            >
+              <Sliders className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Detection settings</span>
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
 
+  const effectiveEyeClosed = isEyesClosed || isLongEyeClosure;
   const formattedEyeDurationSec =
     eyeClosureDurationMs >= 500
       ? `${(eyeClosureDurationMs / 1000).toFixed(1)}s`
       : null;
 
-  const isHeadDeviated = isHeadTurned || isHeadTilted;
+  const isHeadDeviated = isHeadTurned || isHeadTilted || isLookingAway;
+  const effectiveHeadDurationMs = Math.max(
+    headPoseDurationMs,
+    lookingAwayDurationMs || (isLookingAway ? 3000 : 0)
+  );
   const formattedHeadDurationSec =
-    headPoseDurationMs >= 500
-      ? `${(headPoseDurationMs / 1000).toFixed(1)}s`
+    effectiveHeadDurationMs >= 500
+      ? `${(effectiveHeadDurationMs / 1000).toFixed(1)}s`
       : null;
 
   return (
@@ -92,27 +177,50 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
         className
       )}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-h3 text-on-surface">Live Detection</h3>
+      {/* Top Header: Title, State, Elapsed Duration & Stop Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <h3 className="text-h3 font-semibold text-on-surface">Active Session</h3>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-caption font-semibold',
+                isWorkerReady
+                  ? 'bg-success-container text-success'
+                  : 'bg-caution-container text-caution'
+              )}
+            >
+              <Cpu className="w-3.5 h-3.5" aria-hidden="true" />
+              {isWorkerReady ? 'Detection ready' : 'Starting...'}
+            </span>
+          </div>
+          <p className="text-caption text-on-surface-muted">
+            Elapsed duration:{' '}
+            <strong className="text-primary font-semibold tabular-nums">
+              {formattedElapsedTime}
+            </strong>{' '}
+            · Monitored locally
+          </p>
+        </div>
 
-        {/* Worker Engine State */}
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption font-semibold',
-            isWorkerReady
-              ? 'bg-success-container text-success'
-              : 'bg-caution-container text-caution'
-          )}
-        >
-          <Cpu className="w-3.5 h-3.5" aria-hidden="true" />
-          {isWorkerReady ? 'Detection ready' : 'Starting detection...'}
-        </span>
+        {onStop && (
+          <Button
+            variant="danger"
+            size="default"
+            onClick={onStop}
+            className="w-full sm:w-auto min-w-[140px] gap-2 font-semibold"
+            aria-label="Stop study session immediately"
+          >
+            <Square className="w-4 h-4 fill-current" aria-hidden="true" />
+            <span>Stop session</span>
+          </Button>
+        )}
       </div>
 
       {/* Primary Detection Signal: Face Detected */}
       <div
         className={cn(
-          'flex items-center gap-3 p-4 rounded-md border transition-colors motion-reduce:transition-none',
+          'flex items-center gap-3 p-3.5 rounded-md border transition-colors motion-reduce:transition-none',
           faceDetected
             ? 'bg-success-container/40 border-success/30 text-on-surface'
             : 'bg-background border-border text-on-surface-muted'
@@ -120,7 +228,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
       >
         <div
           className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center shrink-0',
+            'w-9 h-9 rounded-full flex items-center justify-center shrink-0',
             faceDetected
               ? 'bg-success-container text-success'
               : 'bg-surface border border-border text-on-surface-muted'
@@ -128,9 +236,9 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
           aria-hidden="true"
         >
           {faceDetected ? (
-            <UserCheck className="w-5 h-5" />
+            <UserCheck className="w-4 h-4" />
           ) : (
-            <UserX className="w-5 h-5" />
+            <UserX className="w-4 h-4" />
           )}
         </div>
 
@@ -157,20 +265,24 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
           <div className="flex items-center">
             {faceDetected ? (
               <Badge
-                variant={isEyesClosed ? 'event-eyes' : 'neutral'}
+                variant={effectiveEyeClosed ? 'event-eyes' : 'neutral'}
                 className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center"
               >
-                {isEyesClosed ? (
+                {effectiveEyeClosed ? (
                   <>
-                    <EyeOff className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    {isLongEyeClosure ? (
+                      <Clock className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    )}
                     <span>
-                      Eyes closed
+                      {isLongEyeClosure ? 'Long eye closure' : 'Eyes closed'}
                       {formattedEyeDurationSec ? ` ${formattedEyeDurationSec}` : ''}
                     </span>
                   </>
                 ) : (
                   <>
-                    <Eye className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <Eye className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span>Eyes open</span>
                   </>
                 )}
@@ -199,14 +311,22 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
           <div className="flex items-center">
             {faceDetected ? (
               <Badge
-                variant={isHeadDeviated ? 'event-head' : 'neutral'}
+                variant={
+                  isLookingAway
+                    ? 'event-away'
+                    : isHeadDeviated
+                      ? 'event-head'
+                      : 'neutral'
+                }
                 className="tabular-nums text-body-sm py-1 px-3 w-full justify-center text-center"
               >
-                <Compass className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                <Compass className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>
-                  {isHeadDeviated
-                    ? `Head turned${formattedHeadDurationSec ? ` ${formattedHeadDurationSec}` : ''}`
-                    : 'Head centered'}
+                  {isLookingAway
+                    ? `Looking away${formattedHeadDurationSec ? ` ${formattedHeadDurationSec}` : ''}`
+                    : isHeadDeviated
+                      ? `Head turned${formattedHeadDurationSec ? ` ${formattedHeadDurationSec}` : ''}`
+                      : 'Head centered'}
                 </span>
               </Badge>
             ) : (
@@ -227,13 +347,90 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
         </div>
       </div>
 
-      {/* Diagnostics Bar */}
-      <div className="flex items-center justify-between pt-1 border-t border-border/60 text-caption text-on-surface-muted">
-        <span>Runs privately in your browser</span>
-        {processingTimeMs > 0 && (
-          <span className="tabular-nums font-medium">
-            Response time: <strong className="text-on-surface">{processingTimeMs} ms</strong>
+      {/* Session Event Counts Summary Bar */}
+      <div
+        aria-label="Session event counts"
+        className="rounded-md border border-border bg-background p-3.5 space-y-2.5"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-label text-on-surface">Session Event Counts</span>
+          <span className="text-caption text-on-surface-muted tabular-nums">
+            Total recorded: <strong className="text-on-surface">{eventCounts.total}</strong>
           </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="rounded-sm bg-surface border border-border p-2.5 space-y-0.5">
+            <span className="text-caption text-event-eyes font-semibold block">
+              Eyes closed
+            </span>
+            <span
+              data-testid="count-eyes-closed"
+              className="text-h3 font-semibold text-on-surface tabular-nums block"
+            >
+              {eventCounts.eyesClosed}
+            </span>
+          </div>
+
+          <div className="rounded-sm bg-surface border border-border p-2.5 space-y-0.5">
+            <span className="text-caption text-event-eyes font-semibold block">
+              Long eye closures
+            </span>
+            <span
+              data-testid="count-long-eye-closure"
+              className="text-h3 font-semibold text-on-surface tabular-nums block"
+            >
+              {eventCounts.longEyeClosure}
+            </span>
+          </div>
+
+          <div className="rounded-sm bg-surface border border-border p-2.5 space-y-0.5">
+            <span className="text-caption text-event-head font-semibold block">
+              Head turned
+            </span>
+            <span
+              data-testid="count-head-turned"
+              className="text-h3 font-semibold text-on-surface tabular-nums block"
+            >
+              {eventCounts.headTurned}
+            </span>
+          </div>
+
+          <div className="rounded-sm bg-surface border border-border p-2.5 space-y-0.5">
+            <span className="text-caption text-event-away font-semibold block">
+              Looking away
+            </span>
+            <span
+              data-testid="count-looking-away"
+              className="text-h3 font-semibold text-on-surface tabular-nums block"
+            >
+              {eventCounts.lookingAway}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer: Telemetry & Settings */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-border/60 text-caption text-on-surface-muted">
+        <div className="flex items-center gap-3">
+          <span>Runs privately in your browser</span>
+          {processingTimeMs > 0 && (
+            <span className="tabular-nums font-medium">
+              Response: <strong className="text-on-surface">{processingTimeMs} ms</strong>
+            </span>
+          )}
+        </div>
+
+        {onOpenSettings && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onOpenSettings}
+            className="gap-1.5 h-8 px-3 text-caption self-start sm:self-auto"
+          >
+            <Sliders className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Detection settings</span>
+          </Button>
         )}
       </div>
     </div>
