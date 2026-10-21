@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { User } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LogOut } from 'lucide-react';
 import { useSessionState } from '@/lib/session/use-session-state';
 import { useCamera } from '@/lib/camera/use-camera';
 import { useFaceDetection } from '@/lib/detection/use-face-detection';
@@ -13,6 +13,7 @@ import {
   finalizeSessionEvents,
   type SessionEventEngineState,
 } from '@/lib/detection/session-event-engine';
+import { Button } from '@/components/ui/button';
 import { MonitoringIndicator } from '@/components/session/monitoring-indicator';
 import { ConsentModal } from '@/components/session/consent-modal';
 import { CameraPreview } from '@/components/camera/camera-preview';
@@ -36,14 +37,6 @@ export default function Home() {
   }, []);
 
   const {
-    status: authStatus,
-    email: authEmail,
-    signInWithEmail,
-    signUpWithEmail,
-    signOut,
-  } = useSupabaseAuth();
-
-  const {
     status: sessionStatus,
     isMonitoring,
     formattedElapsedTime,
@@ -63,6 +56,14 @@ export default function Home() {
 
   const { settings, updateSettings, resetSettings } = useDetectionSettings();
 
+  const {
+    status: authStatus,
+    email: authEmail,
+    signInWithEmail,
+    signUpWithEmail,
+    signOut,
+  } = useSupabaseAuth();
+
   // Background Web Worker face detection pipeline (zero main-thread slowdown)
   const {
     isWorkerReady,
@@ -72,80 +73,81 @@ export default function Home() {
     eyeBlinkRight,
     transformationMatrix,
     lastFrameTimestamp,
-    processingTimeMs,
   } = useFaceDetection({
     videoRef,
     isMonitoring,
   });
 
-  const engineStateRef = useRef<SessionEventEngineState>(
+  // Session event accumulator state (Feature F-09, F-10)
+  const [engineState, setEngineState] = useState<SessionEventEngineState>(() =>
     createInitialSessionEventEngineState()
   );
-  const lastProcessedTimestampRef = useRef<number>(0);
-  const [engineState, setEngineState] = useState<SessionEventEngineState>(
-    createInitialSessionEventEngineState
-  );
 
+  const engineStateRef = useRef<SessionEventEngineState>(engineState);
   useEffect(() => {
-    if (!isMonitoring) {
-      return;
-    }
+    engineStateRef.current = engineState;
+  }, [engineState]);
 
-    if (
-      lastFrameTimestamp === 0 ||
-      lastFrameTimestamp === lastProcessedTimestampRef.current
-    ) {
-      return;
-    }
+  const lastProcessedTimestampRef = useRef<number>(0);
 
+  // Process each worker detection result frame through the accumulator engine
+  useEffect(() => {
+    if (!isMonitoring || !isWorkerReady) return;
+    if (lastFrameTimestamp <= lastProcessedTimestampRef.current) return;
     lastProcessedTimestampRef.current = lastFrameTimestamp;
 
-    const nextState = processSessionFrame(engineStateRef.current, {
-      faceDetected,
-      eyeBlinkLeft,
-      eyeBlinkRight,
-      transformationMatrix,
-      timestampMs: lastFrameTimestamp,
-      thresholds: {
-        eyeClosedScoreThreshold: settings.eyeClosedScoreThreshold,
-        eyeClosedDurationMs: settings.eyeClosedDurationMs,
-        headTurnYawAngleDegrees: settings.headTurnYawAngleDegrees,
-        headTiltPitchAngleDegrees: settings.headTiltPitchAngleDegrees,
-      },
-    });
-    engineStateRef.current = nextState;
-    setEngineState(nextState);
+    const next = processSessionFrame(
+      engineStateRef.current,
+      {
+        timestampMs: lastFrameTimestamp,
+        faceDetected,
+        eyeBlinkLeft,
+        eyeBlinkRight,
+        transformationMatrix,
+        thresholds: settings,
+      }
+    );
+
+    setEngineState(next);
   }, [
     isMonitoring,
+    isWorkerReady,
+    lastFrameTimestamp,
     faceDetected,
     eyeBlinkLeft,
     eyeBlinkRight,
     transformationMatrix,
-    lastFrameTimestamp,
     settings,
   ]);
 
+  const eventCounts = useMemo(() => ({
+    eyesClosed: engineState.events.filter((e) => e.eventType === 'eyes_closed').length,
+    longEyeClosure: 0,
+    headTurned: engineState.events.filter((e) => e.eventType === 'head_turned').length,
+    lookingAway: 0,
+    total: engineState.events.length,
+  }), [engineState.events]);
+
   /**
    * Called when user affirmatively gives consent in the ConsentModal.
-   * Resets session event accumulator, starts session timer, and requests webcam stream.
+   * Starts session timer, resets accumulator, and requests webcam.
    */
   const handleConsentAgreed = useCallback(async () => {
-    const freshEngine = createInitialSessionEventEngineState();
-    engineStateRef.current = freshEngine;
-    lastProcessedTimestampRef.current = 0;
-    setEngineState(freshEngine);
     confirmConsent();
+    setEngineState(createInitialSessionEventEngineState());
+    lastProcessedTimestampRef.current = 0;
     await startCamera();
   }, [confirmConsent, startCamera]);
 
   /**
    * Called when user stops monitoring.
-   * Finalizes any active event, releases camera hardware tracks immediately, and stops timer.
+   * Releases camera hardware tracks immediately and stops timer.
    */
   const handleStopSession = useCallback(() => {
     const finalized = finalizeSessionEvents(
       engineStateRef.current,
-      performance.now()
+      performance.now(),
+      new Date().toISOString()
     );
     engineStateRef.current = finalized;
     lastProcessedTimestampRef.current = 0;
@@ -190,41 +192,41 @@ export default function Home() {
       {/* Top Header / Navigation Bar */}
       <header className="border-b border-border bg-surface px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-h3 font-semibold text-on-surface">
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-h3 font-semibold text-on-surface truncate">
               Study Session Monitor
             </h1>
             <span
               tabIndex={0}
               title="Experimental: Phase 1 features are functional baselines and are not yet validated for accuracy."
-              aria-label="Phase 1 Experimental: functional baseline features not yet validated for accuracy"
+              aria-label="Experimental: Phase 1 features are functional baselines and are not yet validated for accuracy."
               className="hidden sm:inline-flex rounded-full bg-experimental-container px-2.5 py-0.5 text-caption font-semibold text-experimental focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              Phase 1 Experimental
+              Experimental
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Student Account / Guest Pill & Sign Out */}
-            <div className="flex items-center gap-2 text-caption text-on-surface-muted bg-background border border-border px-2.5 py-1 rounded-md">
-              <User className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-              <span className="font-medium text-on-surface">
-                {authEmail || 'Guest Student'}
-              </span>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="ml-1 text-caption text-on-surface-muted hover:text-primary transition-colors underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-              >
-                Sign out
-              </button>
-            </div>
-
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Persistent Monitoring Indicator */}
             <MonitoringIndicator
               isMonitoring={isMonitoring}
               elapsedTime={formattedElapsedTime}
             />
+
+            {/* Student Account & Sign Out */}
+            <span className="hidden md:inline text-body-sm text-on-surface-muted truncate max-w-[200px]">
+              {authEmail || 'Guest'}
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void handleSignOut()}
+              className="gap-1.5 h-9"
+            >
+              <LogOut className="w-4 h-4" aria-hidden="true" />
+              <span>Sign out</span>
+            </Button>
           </div>
         </div>
       </header>
@@ -234,14 +236,9 @@ export default function Home() {
         {/* Two-Column Responsive Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Live Camera Preview & Observed Events */}
-          <div className="lg:col-span-6 space-y-5">
-            <div className="rounded-lg border border-border bg-surface p-4 sm:p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-h3 text-on-surface">Webcam Feed</h2>
-                <span className="text-caption text-on-surface-muted">
-                  {cameraStatus === 'active' ? 'Camera active' : 'Offline'}
-                </span>
-              </div>
+          <div className="lg:col-span-5 space-y-5">
+            <div className="rounded-lg border border-border bg-surface p-4 space-y-3">
+              <h2 className="text-h3 text-on-surface">Your camera</h2>
 
               {/* Mirrored Camera Preview with forwarded videoRef for worker capture */}
               <CameraPreview
@@ -258,25 +255,20 @@ export default function Home() {
           </div>
 
           {/* Right Column: Unified Live Status & Controls */}
-          <div className="lg:col-span-6 space-y-5">
+          <div className="lg:col-span-7 space-y-5">
             <LiveStatusCard
               isMonitoring={isMonitoring}
               isWorkerReady={isWorkerReady}
               faceDetected={faceDetected}
-              processingTimeMs={processingTimeMs}
-              formattedElapsedTime={formattedElapsedTime}
               onStart={requestStart}
               onStop={handleStopSession}
               onOpenSettings={() => setIsSettingsOpen(true)}
-              settingsSummary={`Eyes ${(settings.eyeClosedScoreThreshold * 100).toFixed(0)}% (${(settings.eyeClosedDurationMs / 1000).toFixed(1)}s) · Yaw ${settings.headTurnYawAngleDegrees}° · Pitch ${settings.headTiltPitchAngleDegrees}°`}
               isEyesClosed={engineState.eyeClosure.isClosed}
               eyeClosureDurationMs={engineState.eyeClosure.continuousDurationMs}
-              eyeBlinkScore={eyeBlinkScore}
               isHeadTurned={engineState.headPose.isTurned}
               isHeadTilted={engineState.headPose.isTilted}
               headPoseDurationMs={engineState.headPose.continuousDurationMs}
-              headYawDegrees={engineState.headAngles?.yawDegrees ?? null}
-              headPitchDegrees={engineState.headAngles?.pitchDegrees ?? null}
+              eventCounts={eventCounts}
             />
           </div>
         </div>
