@@ -14,10 +14,9 @@ import {
   type SessionEventEngineState,
 } from '@/lib/detection/session-event-engine';
 import { Button } from '@/components/ui/button';
-import { MonitoringIndicator } from '@/components/session/monitoring-indicator';
 import { ConsentModal } from '@/components/session/consent-modal';
 import { CameraPreview } from '@/components/camera/camera-preview';
-import { LiveStatusCard } from '@/components/session/live-status-card';
+import { FocusStage } from '@/components/session/focus-stage';
 import { EventFeed } from '@/components/session/event-feed';
 import { SettingsModal } from '@/components/session/settings-modal';
 import { StudentLoginView } from '@/components/auth/student-login-view';
@@ -26,12 +25,17 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  const sessionConsentIsoRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = window.sessionStorage?.getItem('study_tracker_guest_mode');
       if (saved === 'true') {
         setIsGuestMode(true);
+      }
+      const consented = window.sessionStorage?.getItem('study_tracker_consented_at');
+      if (consented) {
+        sessionConsentIsoRef.current = consented;
       }
     }
   }, []);
@@ -129,10 +133,40 @@ export default function Home() {
   }), [engineState.events]);
 
   /**
+   * Fast 1-click start: if consent is already recorded, starts session immediately.
+   * If first time, prompts via ConsentModal.
+   */
+  const handleStartStudySession = useCallback(async () => {
+    let consentedAt = sessionConsentIsoRef.current;
+    if (!consentedAt && typeof window !== 'undefined') {
+      consentedAt = window.sessionStorage?.getItem('study_tracker_consented_at') || null;
+      if (consentedAt) {
+        sessionConsentIsoRef.current = consentedAt;
+      }
+    }
+
+    if (!consentedAt) {
+      requestStart();
+      return;
+    }
+
+    const mediaStream = await startCamera();
+    if (mediaStream) {
+      confirmConsent();
+      setEngineState(createInitialSessionEventEngineState());
+      lastProcessedTimestampRef.current = 0;
+    }
+  }, [confirmConsent, requestStart, startCamera]);
+
+  /**
    * Called when user affirmatively gives consent in the ConsentModal.
-   * Starts session timer, resets accumulator, and requests webcam.
    */
   const handleConsentAgreed = useCallback(async () => {
+    const nowIso = new Date().toISOString();
+    sessionConsentIsoRef.current = nowIso;
+    if (typeof window !== 'undefined') {
+      window.sessionStorage?.setItem('study_tracker_consented_at', nowIso);
+    }
     confirmConsent();
     setEngineState(createInitialSessionEventEngineState());
     lastProcessedTimestampRef.current = 0;
@@ -176,10 +210,13 @@ export default function Home() {
           onSignIn={signInWithEmail}
           onSignUp={signUpWithEmail}
           onContinueAsGuest={() => {
-            setIsGuestMode(true);
+            const nowIso = new Date().toISOString();
+            sessionConsentIsoRef.current = nowIso;
             if (typeof window !== 'undefined') {
+              window.sessionStorage?.setItem('study_tracker_consented_at', nowIso);
               window.sessionStorage?.setItem('study_tracker_guest_mode', 'true');
             }
+            setIsGuestMode(true);
           }}
           isLoading={authStatus === 'loading'}
         />
@@ -189,7 +226,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background text-on-surface">
-      {/* Top Header / Navigation Bar */}
+      {/* Top Header / Navigation Bar (Clean & Minimal) */}
       <header className="border-b border-border bg-surface px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -207,12 +244,6 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Persistent Monitoring Indicator */}
-            <MonitoringIndicator
-              isMonitoring={isMonitoring}
-              elapsedTime={formattedElapsedTime}
-            />
-
             {/* Student Account & Sign Out */}
             <span className="hidden md:inline text-body-sm text-on-surface-muted truncate max-w-[200px]">
               {authEmail || 'Guest'}
@@ -231,45 +262,62 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Single Centered Column (max 1120px) */}
-      <div className="mx-auto max-w-[1120px] p-4 sm:p-6 space-y-6">
-        {/* Two-Column Responsive Layout */}
+      {/* Main Workspace (Focus Room) */}
+      <div className="mx-auto max-w-[1120px] px-4 py-6 sm:px-6 sm:py-8 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Live Camera Preview & Observed Events */}
-          <div className="lg:col-span-5 space-y-5">
-            <div className="rounded-lg border border-border bg-surface p-4 space-y-3">
-              <h2 className="text-h3 text-on-surface">Your camera</h2>
-
-              {/* Mirrored Camera Preview with forwarded videoRef for worker capture */}
-              <CameraPreview
-                videoRef={videoRef}
-                stream={stream}
-                status={cameraStatus}
-                errorMessage={cameraErrorMessage}
-                onRetry={startCamera}
-              />
-            </div>
-
-            {/* Observable Session Events Feed */}
-            <EventFeed events={engineState.events} />
-          </div>
-
-          {/* Right Column: Unified Live Status & Controls */}
-          <div className="lg:col-span-7 space-y-5">
-            <LiveStatusCard
+          {/* Left Primary Column: Focus Stage (8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            <FocusStage
               isMonitoring={isMonitoring}
-              isWorkerReady={isWorkerReady}
+              formattedElapsedTime={formattedElapsedTime}
               faceDetected={faceDetected}
-              onStart={requestStart}
-              onStop={handleStopSession}
-              onOpenSettings={() => setIsSettingsOpen(true)}
               isEyesClosed={engineState.eyeClosure.isClosed}
+              isLongEyeClosure={false}
               eyeClosureDurationMs={engineState.eyeClosure.continuousDurationMs}
               isHeadTurned={engineState.headPose.isTurned}
               isHeadTilted={engineState.headPose.isTilted}
+              isLookingAway={false}
               headPoseDurationMs={engineState.headPose.continuousDurationMs}
+              lookingAwayDurationMs={3000}
               eventCounts={eventCounts}
+              onStart={handleStartStudySession}
+              onStop={handleStopSession}
+              onOpenSettings={() => setIsSettingsOpen(true)}
             />
+
+            {/* Event Feed Component */}
+            <EventFeed events={engineState.events} />
+          </div>
+
+          {/* Right Peripheral Column: Camera Preview (4 cols) */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-body font-semibold text-on-surface">
+                  Camera preview
+                </h3>
+                {isMonitoring ? (
+                  <span className="inline-flex items-center gap-1.5 text-caption font-semibold text-danger">
+                    <span className="w-2 h-2 rounded-full bg-danger" aria-hidden="true" />
+                    <span>Monitoring</span>
+                  </span>
+                ) : (
+                  <span className="text-caption font-medium text-on-surface-muted">
+                    Off
+                  </span>
+                )}
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-border bg-background aspect-video">
+                <CameraPreview
+                  stream={stream}
+                  status={cameraStatus}
+                  videoRef={videoRef}
+                  errorMessage={cameraErrorMessage}
+                  onRetry={handleStartStudySession}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
