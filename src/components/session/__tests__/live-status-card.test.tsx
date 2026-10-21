@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { LiveStatusCard } from '../live-status-card';
 
 describe('LiveStatusCard Component', () => {
-  it('renders "Ready to Start" standby state with Start button and privacy note when not monitoring', () => {
+  it('renders "Ready to start" standby state with Start button and privacy note when not monitoring', () => {
     const onStart = vi.fn();
 
     render(
@@ -12,22 +12,20 @@ describe('LiveStatusCard Component', () => {
         isMonitoring={false}
         isWorkerReady={false}
         faceDetected={false}
-        processingTimeMs={0}
         onStart={onStart}
       />
     );
 
-    expect(screen.getByText('Ready to Start')).toBeDefined();
-    expect(screen.getByText('Standby')).toBeDefined();
-    expect(screen.getByText(/Your camera only turns on after you review and accept/)).toBeDefined();
+    expect(screen.getByText('Ready to start')).toBeDefined();
+    expect(screen.getByText(/Your camera turns on only after you agree/)).toBeDefined();
+    expect(screen.getByText('No video is saved · Processed in your browser')).toBeDefined();
 
     const startBtn = screen.getByRole('button', { name: /Start study session/i });
-    expect(startBtn).toBeDefined();
     fireEvent.click(startBtn);
     expect(onStart).toHaveBeenCalledTimes(1);
   });
 
-  it('renders seeking state in header when active but no face detected, with Stop button and elapsed time', () => {
+  it('shows "Not found" with a plain next step when active but no face detected, with Stop button', () => {
     const onStop = vi.fn();
 
     render(
@@ -35,34 +33,36 @@ describe('LiveStatusCard Component', () => {
         isMonitoring={true}
         isWorkerReady={true}
         faceDetected={false}
-        processingTimeMs={12}
-        formattedElapsedTime="01:23"
         onStop={onStop}
       />
     );
 
-    expect(screen.getByText('Active Session')).toBeDefined();
-    expect(screen.getByText('01:23')).toBeDefined();
-    expect(screen.getByText('Ready')).toBeDefined();
-    expect(screen.getByText('Looking for face...')).toBeDefined();
+    expect(screen.getByText('Session in progress')).toBeDefined();
+    expect(screen.getByText('Face')).toBeDefined();
+    expect(screen.getByText('Not found')).toBeDefined();
+    expect(screen.getByText('Move into the camera view.')).toBeDefined();
 
     const stopBtn = screen.getByRole('button', { name: /Stop study session immediately/i });
-    expect(stopBtn).toBeDefined();
     fireEvent.click(stopBtn);
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 
-  it('renders "Face in view" and latency when face is present in view', () => {
+  it('shows "In view" when face is present and hides all developer telemetry', () => {
     render(
-      <LiveStatusCard
-        isMonitoring={true}
-        isWorkerReady={true}
-        faceDetected={true}
-        processingTimeMs={16}
-      />
+      <LiveStatusCard isMonitoring={true} isWorkerReady={true} faceDetected={true} />
     );
 
-    expect(screen.getByText('Face in view')).toBeDefined();
-    expect(screen.getByText('16 ms')).toBeDefined();
+    expect(screen.getByText('In view')).toBeDefined();
+    expect(screen.queryByText(/ms/)).toBeNull();
+    expect(screen.queryByText('Ready')).toBeNull();
+    expect(screen.queryByText(/Elapsed/)).toBeNull();
+  });
+
+  it('shows "Getting ready…" while detection is still loading', () => {
+    render(
+      <LiveStatusCard isMonitoring={true} isWorkerReady={false} faceDetected={false} />
+    );
+
+    expect(screen.getByText('Getting ready…')).toBeDefined();
   });
 });

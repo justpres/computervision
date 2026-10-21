@@ -1,32 +1,30 @@
 import React from 'react';
-import { UserCheck, UserX, Cpu, Play, Square } from 'lucide-react';
+import { User, Play, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { StatusRow } from '@/components/session/status-row';
 
 export interface LiveStatusCardProps {
   isMonitoring: boolean;
   isWorkerReady: boolean;
   faceDetected: boolean;
-  processingTimeMs: number;
-  formattedElapsedTime?: string;
   onStart?: () => void;
   onStop?: () => void;
   className?: string;
 }
 
 /**
- * Live status & unified session card (M0 baseline):
- * - In standby: "Ready to Start" card with primary Start action and privacy facts.
- * - When active: "Active Session" card with Stop action, session duration, live Face status pill in header, and response time.
- * - Streamlined and compact; eliminates oversized banners and text clutter.
+ * Student-facing session card (M0 baseline):
+ * - Standby: "Ready to start" with one primary Start action and a short privacy note.
+ * - Active: "Session in progress" with Stop, and a live Face status row.
+ * - No developer telemetry (latency, engine state) is shown to the student.
+ * - Elapsed time lives only in the header MonitoringIndicator (no duplication).
  * - Accessible status region (role="status", aria-live="polite").
  */
 export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
   isMonitoring,
   isWorkerReady,
   faceDetected,
-  processingTimeMs,
-  formattedElapsedTime = '00:00',
   onStart,
   onStop,
   className,
@@ -35,111 +33,63 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
     return (
       <div
         className={cn(
-          'rounded-lg border border-border bg-surface p-5 sm:p-6 space-y-5 shadow-none',
+          'rounded-lg border border-border bg-surface p-6 space-y-4 shadow-none',
           className
         )}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-h2 font-semibold text-on-surface">Ready to Start</h2>
-            <p className="text-body-sm text-on-surface-muted">
-              Click start to begin private webcam study monitoring.
-            </p>
-          </div>
-
-          {onStart && (
-            <Button
-              variant="primary"
-              size="default"
-              onClick={onStart}
-              className="w-full sm:w-auto min-w-[150px] gap-2 font-semibold"
-              aria-label="Start study session with consent check"
-            >
-              <Play className="w-4 h-4 fill-current" aria-hidden="true" />
-              <span>Start session</span>
-            </Button>
-          )}
-        </div>
-
-        <div className="rounded-md border border-border bg-background p-4 space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-label text-on-surface-muted">Session Status</span>
-            <span className="text-body-sm font-semibold text-on-surface">Standby</span>
-          </div>
-          <p className="text-body-sm text-on-surface-muted">
-            Your camera only turns on after you review and accept the privacy consent. All detection runs entirely inside your browser.
+        <div className="space-y-1">
+          <h2 className="text-h2 font-semibold text-on-surface">Ready to start</h2>
+          <p className="text-body-md text-on-surface-muted">
+            Your camera turns on only after you agree. You can stop at any time.
           </p>
         </div>
+
+        {onStart && (
+          <Button
+            variant="primary"
+            size="default"
+            onClick={onStart}
+            className="w-full sm:w-auto min-w-[160px] gap-2 font-semibold"
+            aria-label="Start study session with consent check"
+          >
+            <Play className="w-4 h-4 fill-current" aria-hidden="true" />
+            <span>Start session</span>
+          </Button>
+        )}
+
+        <p className="pt-4 border-t border-border text-body-sm text-on-surface-muted">
+          No video is saved · Processed in your browser
+        </p>
       </div>
     );
   }
 
+  const face = !isWorkerReady
+    ? { value: 'Getting ready…', tone: 'neutral' as const, hint: undefined }
+    : faceDetected
+      ? { value: 'In view', tone: 'success' as const, hint: undefined }
+      : {
+          value: 'Not found',
+          tone: 'caution' as const,
+          hint: 'Move into the camera view.',
+        };
+
   return (
     <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
       className={cn(
-        'rounded-lg border border-border bg-surface p-5 space-y-4 shadow-none',
+        'rounded-lg border border-border bg-surface p-6 space-y-4 shadow-none',
         className
       )}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h3 className="text-h3 font-semibold text-on-surface">Active Session</h3>
-
-            {/* Face Status Pill */}
-            <span
-              className={cn(
-                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption font-semibold transition-colors',
-                faceDetected
-                  ? 'bg-success-container text-success'
-                  : 'bg-caution-container text-caution'
-              )}
-            >
-              {faceDetected ? (
-                <>
-                  <UserCheck className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span>Face in view</span>
-                </>
-              ) : (
-                <>
-                  <UserX className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span>Looking for face...</span>
-                </>
-              )}
-            </span>
-
-            {/* Worker Engine State */}
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-medium',
-                isWorkerReady
-                  ? 'bg-background text-on-surface-muted border border-border'
-                  : 'bg-caution-container text-caution'
-              )}
-            >
-              <Cpu className="w-3 h-3" aria-hidden="true" />
-              {isWorkerReady ? 'Ready' : 'Starting...'}
-            </span>
-          </div>
-
-          <p className="text-caption text-on-surface-muted">
-            Elapsed duration:{' '}
-            <strong className="text-primary font-semibold tabular-nums">
-              {formattedElapsedTime}
-            </strong>{' '}
-            · Monitored locally
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-h3 font-semibold text-on-surface">Session in progress</h2>
 
         {onStop && (
           <Button
             variant="danger"
             size="default"
             onClick={onStop}
-            className="w-full sm:w-auto min-w-[140px] gap-2 font-semibold self-start sm:self-auto shrink-0"
+            className="w-full sm:w-auto min-w-[140px] gap-2 font-semibold"
             aria-label="Stop study session immediately"
           >
             <Square className="w-4 h-4 fill-current" aria-hidden="true" />
@@ -148,15 +98,13 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
         )}
       </div>
 
-      {/* Diagnostics Bar */}
-      <div className="flex items-center justify-between pt-1 border-t border-border/60 text-caption text-on-surface-muted">
-        <span>Runs privately in your browser</span>
-        {processingTimeMs > 0 && (
-          <span className="tabular-nums font-medium">
-            Response time: <strong className="text-on-surface">{processingTimeMs} ms</strong>
-          </span>
-        )}
+      <div role="status" aria-live="polite" aria-atomic="true">
+        <StatusRow icon={User} label="Face" value={face.value} tone={face.tone} hint={face.hint} />
       </div>
+
+      <p className="pt-4 border-t border-border text-body-sm text-on-surface-muted">
+        No video is saved · Processed in your browser
+      </p>
     </div>
   );
 };
