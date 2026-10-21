@@ -1,8 +1,10 @@
 import React from 'react';
-import { EyeOff, Compass, Clock } from 'lucide-react';
+import { EyeOff, Compass, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import type { SessionDetectionEvent } from '@/lib/detection/session-event-engine';
+import type {
+  ObservableDetectionEventType,
+  SessionDetectionEvent,
+} from '@/lib/detection/session-event-engine';
 
 export interface EventFeedProps {
   events: readonly SessionDetectionEvent[];
@@ -10,16 +12,44 @@ export interface EventFeedProps {
   className?: string;
 }
 
+function getEventDisplayMeta(eventType: ObservableDetectionEventType): {
+  label: string;
+  toneClass: string;
+  icon: typeof EyeOff;
+} {
+  switch (eventType) {
+    case 'eyes_closed':
+      return {
+        label: 'Eyes closed',
+        toneClass: 'text-event-eyes',
+        icon: EyeOff,
+      };
+    case 'head_turned':
+      return {
+        label: 'Head turned',
+        toneClass: 'text-event-head',
+        icon: Compass,
+      };
+  }
+}
+
+function formatEventTime(isoString?: string): string | null {
+  if (!isoString) return null;
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 /**
- * Displays recent observable detection events as neutral event chips:
- * - "Eyes closed 1.2s" using event-eyes blue (#2A5CAA on #FFFFFF) + EyeOff icon
- * - "Head turned 1.5s" using event-head amber-brown (#B45F06 on #FFFFFF) + Compass icon
- * - Tabular numerals for all durations and counts
- * - Strictly neutral wording
+ * Clean vertical activity timeline for observable session events (M1 baseline):
+ * - Shows recent events in reverse chronological order (newest on top).
+ * - Fixed, aligned row structure eliminates jagged line wraps.
+ * - Non-punitive, plain-spoken wording ("Recent activity", "signs").
+ * - Pairs icons with text labels per WCAG 2.1 AAA / DR-03.
  */
 export const EventFeed: React.FC<EventFeedProps> = ({
   events,
-  maxVisible = 8,
+  maxVisible = 6,
   className,
 }) => {
   const recentEvents = [...events].reverse().slice(0, maxVisible);
@@ -34,44 +64,57 @@ export const EventFeed: React.FC<EventFeedProps> = ({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-on-surface-muted" aria-hidden="true" />
-          <h3 id="event-feed-heading" className="text-h3 text-on-surface">
-            Observed Session Events
+          <Activity className="w-4 h-4 text-primary" aria-hidden="true" />
+          <h3 id="event-feed-heading" className="text-h3 font-semibold text-on-surface">
+            Recent activity
           </h3>
         </div>
         <span className="text-caption text-on-surface-muted tabular-nums">
-          Total: <strong className="text-on-surface">{events.length}</strong>
+          Total signs: <strong className="text-on-surface">{events.length}</strong>
         </span>
       </div>
 
       {recentEvents.length === 0 ? (
-        <p className="text-body-sm text-on-surface-muted py-1">
-          No eye-closure or head-turn events recorded yet during this session.
+        <p className="text-body-sm text-on-surface-muted py-2">
+          No signs recorded yet in this session.
         </p>
       ) : (
         <ul
-          aria-label="Recent observed events"
-          className="flex flex-wrap gap-2 pt-1"
+          aria-label="Recent activity log"
+          className="divide-y divide-border/60"
         >
           {recentEvents.map((evt) => {
             const durationSec = (evt.durationMs / 1000).toFixed(1);
-            const isEyes = evt.eventType === 'eyes_closed';
+            const meta = getEventDisplayMeta(evt.eventType);
+            const Icon = meta.icon;
+            const timeString = formatEventTime(evt.startedAtIso);
 
             return (
-              <li key={evt.id}>
-                <Badge
-                  variant={isEyes ? 'event-eyes' : 'event-head'}
-                  className="tabular-nums"
-                >
-                  {isEyes ? (
-                    <EyeOff className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  ) : (
-                    <Compass className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  )}
-                  <span>
-                    {isEyes ? 'Eyes closed' : 'Head turned'} {durationSec}s
+              <li
+                key={evt.id}
+                className="py-2.5 flex items-center justify-between gap-3 text-body-sm"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon
+                    className={cn('w-4 h-4 shrink-0', meta.toneClass)}
+                    aria-hidden="true"
+                  />
+                  <span className={cn('font-medium truncate', meta.toneClass)}>
+                    {meta.label}
                   </span>
-                </Badge>
+                </div>
+
+                <div className="flex items-center gap-2 text-caption text-on-surface-muted shrink-0 tabular-nums">
+                  <span className="font-semibold text-on-surface">
+                    {durationSec}s
+                  </span>
+                  {timeString && (
+                    <>
+                      <span>·</span>
+                      <span>{timeString}</span>
+                    </>
+                  )}
+                </div>
               </li>
             );
           })}

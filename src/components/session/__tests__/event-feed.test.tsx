@@ -8,15 +8,13 @@ describe('EventFeed Component', () => {
   it('renders calm empty state when no events have occurred', () => {
     render(<EventFeed events={[]} />);
 
-    expect(screen.getByText('Observed Session Events')).toBeDefined();
+    expect(screen.getByText('Recent activity')).toBeDefined();
     expect(
-      screen.getByText(
-        /No eye-closure or head-turn events recorded yet during this session/
-      )
+      screen.getByText('No signs recorded yet in this session.')
     ).toBeDefined();
   });
 
-  it('renders neutral "Eyes closed" and "Head turned" event chips in reverse chronological order', () => {
+  it('renders neutral "Eyes closed" and "Head turned" events in reverse chronological order', () => {
     const events: SessionDetectionEvent[] = [
       {
         id: 'evt-1',
@@ -38,8 +36,10 @@ describe('EventFeed Component', () => {
 
     render(<EventFeed events={events} />);
 
-    expect(screen.getByText('Eyes closed 1.2s')).toBeDefined();
-    expect(screen.getByText('Head turned 2.5s')).toBeDefined();
+    expect(screen.getByText('Eyes closed')).toBeDefined();
+    expect(screen.getByText('1.2s')).toBeDefined();
+    expect(screen.getByText('Head turned')).toBeDefined();
+    expect(screen.getByText('2.5s')).toBeDefined();
     expect(screen.getByText('2')).toBeDefined();
   });
 });
