@@ -179,7 +179,7 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
       {/* Top Header: Title, Face Status Pill, Elapsed Duration & Stop Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1">
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2.5">
             <h3 className="text-h3 font-semibold text-on-surface">Active Session</h3>
 
             {/* Face Status Pill */}
@@ -202,19 +202,6 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
                   <span>Looking for face...</span>
                 </>
               )}
-            </span>
-
-            {/* Worker Engine State */}
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-medium',
-                isWorkerReady
-                  ? 'bg-background text-on-surface-muted border border-border'
-                  : 'bg-caution-container text-caution'
-              )}
-            >
-              <Cpu className="w-3 h-3" aria-hidden="true" />
-              {isWorkerReady ? 'Ready' : 'Starting...'}
             </span>
           </div>
 
@@ -399,8 +386,19 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
 
       {/* Footer: Telemetry & Settings */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-border/60 text-caption text-on-surface-muted">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span>Runs privately in your browser</span>
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-medium',
+              isWorkerReady
+                ? 'bg-background text-on-surface-muted border border-border'
+                : 'bg-caution-container text-caution'
+            )}
+          >
+            <Cpu className="w-3 h-3" aria-hidden="true" />
+            <span>{isWorkerReady ? 'Ready' : 'Starting...'}</span>
+          </span>
           {processingTimeMs > 0 && (
             <span className="tabular-nums font-medium">
               Response: <strong className="text-on-surface">{processingTimeMs} ms</strong>
