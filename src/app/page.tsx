@@ -7,7 +7,6 @@ import { useCamera } from '@/lib/camera/use-camera';
 import { useFaceDetection } from '@/lib/detection/use-face-detection';
 import { useSupabaseAuth } from '@/lib/supabase/use-supabase-auth';
 import { Button } from '@/components/ui/button';
-import { MonitoringIndicator } from '@/components/session/monitoring-indicator';
 import { ConsentModal } from '@/components/session/consent-modal';
 import { CameraPreview } from '@/components/camera/camera-preview';
 import { LiveStatusCard } from '@/components/session/live-status-card';
@@ -16,12 +15,17 @@ import { StudentLoginView } from '@/components/auth/student-login-view';
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  const sessionConsentIsoRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = window.sessionStorage?.getItem('study_tracker_guest_mode');
       if (saved === 'true') {
         setIsGuestMode(true);
+      }
+      const consented = window.sessionStorage?.getItem('study_tracker_consented_at');
+      if (consented) {
+        sessionConsentIsoRef.current = consented;
       }
     }
   }, []);
@@ -59,10 +63,39 @@ export default function Home() {
   });
 
   /**
+   * Fast 1-click start: if consent is already recorded, starts session immediately.
+   * If first time, prompts via ConsentModal.
+   */
+  const handleStartStudySession = useCallback(async () => {
+    let consentedAt = sessionConsentIsoRef.current;
+    if (!consentedAt && typeof window !== 'undefined') {
+      consentedAt = window.sessionStorage?.getItem('study_tracker_consented_at') || null;
+      if (consentedAt) {
+        sessionConsentIsoRef.current = consentedAt;
+      }
+    }
+
+    if (!consentedAt) {
+      requestStart();
+      return;
+    }
+
+    const mediaStream = await startCamera();
+    if (mediaStream) {
+      confirmConsent();
+    }
+  }, [confirmConsent, requestStart, startCamera]);
+
+  /**
    * Called when user affirmatively gives consent in the ConsentModal.
    * Starts session timer and requests webcam hardware stream.
    */
   const handleConsentAgreed = useCallback(async () => {
+    const nowIso = new Date().toISOString();
+    sessionConsentIsoRef.current = nowIso;
+    if (typeof window !== 'undefined') {
+      window.sessionStorage?.setItem('study_tracker_consented_at', nowIso);
+    }
     confirmConsent();
     await startCamera();
   }, [confirmConsent, startCamera]);
@@ -96,10 +129,13 @@ export default function Home() {
           onSignIn={signInWithEmail}
           onSignUp={signUpWithEmail}
           onContinueAsGuest={() => {
-            setIsGuestMode(true);
+            const nowIso = new Date().toISOString();
+            sessionConsentIsoRef.current = nowIso;
             if (typeof window !== 'undefined') {
+              window.sessionStorage?.setItem('study_tracker_consented_at', nowIso);
               window.sessionStorage?.setItem('study_tracker_guest_mode', 'true');
             }
+            setIsGuestMode(true);
           }}
           isLoading={authStatus === 'loading'}
         />
@@ -109,7 +145,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background text-on-surface">
-      {/* Top Header / Navigation Bar */}
+      {/* Top Header / Navigation Bar (Clean & Minimal) */}
       <header className="border-b border-border bg-surface px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -118,8 +154,8 @@ export default function Home() {
             </h1>
             <span
               tabIndex={0}
-              title="Experimental: these features work, but they have not been tested for accuracy yet."
-              aria-label="Experimental: these features work, but they have not been tested for accuracy yet."
+              title="Experimental: Phase 1 features are functional baselines and are not yet validated for accuracy."
+              aria-label="Experimental: Phase 1 features are functional baselines and are not yet validated for accuracy."
               className="hidden sm:inline-flex rounded-full bg-experimental-container px-2.5 py-0.5 text-caption font-semibold text-experimental focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               Experimental
@@ -127,12 +163,6 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Persistent Monitoring Indicator */}
-            <MonitoringIndicator
-              isMonitoring={isMonitoring}
-              elapsedTime={formattedElapsedTime}
-            />
-
             {/* Student Account & Sign Out */}
             <span className="hidden md:inline text-body-sm text-on-surface-muted truncate max-w-[200px]">
               {authEmail || 'Guest'}
@@ -152,34 +182,51 @@ export default function Home() {
       </header>
 
       {/* Main Single Centered Column (max 1120px) */}
-      <div className="mx-auto max-w-[1120px] p-4 sm:p-6 space-y-6">
-        {/* Two-Column Responsive Layout: camera (smaller) + session card */}
+      <div className="mx-auto max-w-[1120px] px-4 py-6 sm:px-6 sm:py-8 space-y-6">
+        {/* Two-Column Responsive Layout: Focus card (8 cols) + camera preview (4 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Live Camera Preview */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="rounded-lg border border-border bg-surface p-4 space-y-3">
-              <h2 className="text-h3 text-on-surface">Your camera</h2>
-
-              {/* Mirrored Camera Preview with forwarded videoRef for worker capture */}
-              <CameraPreview
-                videoRef={videoRef}
-                stream={stream}
-                status={cameraStatus}
-                errorMessage={cameraErrorMessage}
-                onRetry={startCamera}
-              />
-            </div>
-          </div>
-
-          {/* Right Column: Session Status & Controls */}
-          <div className="lg:col-span-7 space-y-5">
+          {/* Left Column: Session Status & Controls */}
+          <div className="lg:col-span-8 space-y-6">
             <LiveStatusCard
               isMonitoring={isMonitoring}
               isWorkerReady={isWorkerReady}
               faceDetected={faceDetected}
-              onStart={requestStart}
+              elapsedTime={formattedElapsedTime}
+              onStart={handleStartStudySession}
               onStop={handleStopSession}
             />
+          </div>
+
+          {/* Right Column: Live Camera Preview */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-body font-semibold text-on-surface">
+                  Camera preview
+                </h3>
+                {isMonitoring ? (
+                  <span className="inline-flex items-center gap-1.5 text-caption font-semibold text-danger">
+                    <span className="w-2 h-2 rounded-full bg-danger" aria-hidden="true" />
+                    <span>Monitoring</span>
+                  </span>
+                ) : (
+                  <span className="text-caption font-medium text-on-surface-muted">
+                    Off
+                  </span>
+                )}
+              </div>
+
+              {/* Mirrored Camera Preview with forwarded videoRef for worker capture */}
+              <div className="overflow-hidden rounded-xl border border-border bg-background aspect-video">
+                <CameraPreview
+                  videoRef={videoRef}
+                  stream={stream}
+                  status={cameraStatus}
+                  errorMessage={cameraErrorMessage}
+                  onRetry={handleStartStudySession}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
