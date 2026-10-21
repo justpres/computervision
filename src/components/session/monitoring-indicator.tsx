@@ -9,7 +9,7 @@ export interface MonitoringIndicatorProps {
 
 /**
  * Persistent monitoring indicator:
- * - Single signifier: dot (hollow when off, filled pulse when on) + clear label.
+ * - Single signifier: dot (hollow when off, filled when on, no looping animation per DR-12) + clear label.
  * - Non-reliance on color alone (shape/fill + text difference).
  * - Uses tabular figures for elapsed duration.
  * - Accessible live region (aria-live="polite").
@@ -37,14 +37,14 @@ export const MonitoringIndicator: React.FC<MonitoringIndicatorProps> = ({
         className={cn(
           'w-2.5 h-2.5 rounded-full shrink-0',
           isMonitoring
-            ? 'bg-primary motion-safe:animate-pulse'
+            ? 'bg-primary'
             : 'border-2 border-on-surface-muted'
         )}
         aria-hidden="true"
       />
 
       <span className="font-semibold text-caption">
-        {isMonitoring ? 'Monitoring is on' : 'Camera off'}
+        {isMonitoring ? 'Monitoring is on' : 'Monitoring is off'}
       </span>
 
       {/* Tabular elapsed duration */}
