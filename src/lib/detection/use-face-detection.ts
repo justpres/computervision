@@ -45,6 +45,7 @@ export function useFaceDetection({
 
   const workerRef = useRef<Worker | null>(null);
   const isWorkerBusyRef = useRef(false);
+  const lastTimestampRef = useRef(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize Web Worker
@@ -135,7 +136,11 @@ export function useFaceDetection({
 
     try {
       isWorkerBusyRef.current = true;
-      const timestamp = performance.now();
+      let timestamp = performance.now();
+      if (timestamp <= lastTimestampRef.current) {
+        timestamp = lastTimestampRef.current + 1;
+      }
+      lastTimestampRef.current = timestamp;
       const bitmap = await createImageBitmap(video);
 
       const msg: WorkerRequest = {
@@ -158,6 +163,7 @@ export function useFaceDetection({
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      lastTimestampRef.current = 0;
       setFaceDetected(false);
       setEyeBlinkScore(0);
       setProcessingTimeMs(0);

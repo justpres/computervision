@@ -22,6 +22,9 @@ export const FACE_LANDMARKER_RUN_OPTIONS = {
   numFaces: 1,
   outputFaceBlendshapes: true,
   outputFacialTransformationMatrixes: true,
+  minFaceDetectionConfidence: 0.5,
+  minFacePresenceConfidence: 0.5,
+  minTrackingConfidence: 0.65,
 };
 
 /**
@@ -46,6 +49,9 @@ export const DETECTION_DEFAULTS = {
 
   /** Merge consecutive events of the same type occurring within this debounce window (milliseconds) */
   eventMergeDebounceMs: 2000,
+
+  /** Exponential moving average alpha for blendshape smoothing (0.05 to 1.0) */
+  smoothingAlpha: 0.65,
 
   /** Target detection processing rate in frames per second (keeps detection light) */
   targetFps: 8,
