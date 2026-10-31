@@ -6,9 +6,16 @@ import type {
   WorkerResponse,
   FrameResultData,
 } from '@/lib/detection/worker-types';
+import {
+  createInitialSmoothingState,
+  applyBlinkSmoothing,
+  resetSmoothingState,
+  type SmoothingState,
+} from '@/lib/detection/smoothing';
 
 let faceLandmarker: FaceLandmarker | null = null;
 let isInitializing = false;
+let smoothingState: SmoothingState = createInitialSmoothingState();
 
 self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   const message = e.data;
@@ -32,6 +39,9 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
           outputFaceBlendshapes: true,
           outputFacialTransformationMatrixes: true,
           numFaces: 1,
+          minFaceDetectionConfidence: 0.5,
+          minFacePresenceConfidence: 0.5,
+          minTrackingConfidence: 0.65,
         });
 
         isInitializing = false;
@@ -77,15 +87,23 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         let transformationMatrix: number[] | null = null;
 
         if (faceDetected) {
+          let rawBlinkLeft = 0;
+          let rawBlinkRight = 0;
+
           if (results.faceBlendshapes && results.faceBlendshapes[0]) {
             for (const category of results.faceBlendshapes[0].categories) {
               if (category.categoryName === 'eyeBlinkLeft') {
-                eyeBlinkLeft = category.score;
+                rawBlinkLeft = category.score;
               } else if (category.categoryName === 'eyeBlinkRight') {
-                eyeBlinkRight = category.score;
+                rawBlinkRight = category.score;
               }
             }
           }
+
+          const smoothed = applyBlinkSmoothing(smoothingState, rawBlinkLeft, rawBlinkRight);
+          smoothingState = smoothed.state;
+          eyeBlinkLeft = smoothed.left;
+          eyeBlinkRight = smoothed.right;
 
           if (
             results.facialTransformationMatrixes &&
@@ -95,6 +113,8 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
               results.facialTransformationMatrixes[0].data
             );
           }
+        } else {
+          smoothingState = resetSmoothingState();
         }
 
         // Biometric coordinates (faceLandmarks) are discarded immediately
@@ -128,6 +148,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     }
 
     case 'TERMINATE': {
+      smoothingState = resetSmoothingState();
       if (faceLandmarker) {
         try {
           faceLandmarker.close();
