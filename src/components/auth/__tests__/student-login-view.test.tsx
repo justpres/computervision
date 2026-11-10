@@ -14,9 +14,12 @@ describe('StudentLoginView Component', () => {
     );
 
     expect(screen.getByRole('heading', { name: /Study Session Monitor/i })).toBeDefined();
+    expect(screen.queryByText(/Experimental/i)).toBeNull();
     expect(screen.getByLabelText(/Student Email/i)).toBeDefined();
     expect(screen.getByLabelText(/Password/i)).toBeDefined();
-    expect(screen.getByRole('button', { name: /Sign in to Study Monitor/i })).toBeDefined();
+    const signInButton = screen.getByRole('button', { name: /Sign in to Study Monitor/i });
+    expect(signInButton).toBeDefined();
+    expect(signInButton.className).toContain('text-on-primary');
     expect(screen.getByRole('button', { name: /Try without an account/i })).toBeDefined();
   });
 
