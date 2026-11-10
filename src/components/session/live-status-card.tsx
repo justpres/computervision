@@ -102,10 +102,10 @@ export const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
               variant="primary"
               size="default"
               onClick={onStart}
-              className="w-full sm:w-auto min-w-[160px] gap-2 font-semibold"
+              className="w-full sm:w-auto min-w-[160px] gap-2 font-semibold text-on-primary"
               aria-label="Start study session with consent check"
             >
-              <Play className="w-4 h-4 fill-current" aria-hidden="true" />
+              <Play className="w-4 h-4 fill-current text-on-primary" aria-hidden="true" />
               <span>Start session</span>
             </Button>
           )}

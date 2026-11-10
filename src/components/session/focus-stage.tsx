@@ -123,9 +123,9 @@ export const FocusStage: React.FC<FocusStageProps> = ({
             variant="primary"
             size="lg"
             onClick={onStart}
-            className="gap-2.5 h-12 px-8 text-body-md font-semibold rounded-full shadow-sm hover:shadow transition-all"
+            className="gap-2.5 h-12 px-8 text-body-md font-semibold text-on-primary rounded-full shadow-sm hover:shadow transition-all"
           >
-            <Play className="w-5 h-5 fill-current" aria-hidden="true" />
+            <Play className="w-5 h-5 fill-current text-on-primary" aria-hidden="true" />
             <span>Start study session</span>
           </Button>
         )}
