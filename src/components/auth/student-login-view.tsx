@@ -68,9 +68,6 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
             <h1 className="text-h3 font-semibold text-on-surface">
               Study Session Monitor
             </h1>
-            <span className="rounded-full bg-experimental-container px-2 py-0.5 text-[10px] font-semibold text-experimental uppercase tracking-wide">
-              Experimental
-            </span>
           </div>
           <p className="text-caption text-on-surface-muted">
             Sign in to save your sessions, or try immediately.
@@ -178,9 +175,9 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
             type="submit"
             variant="primary"
             disabled={isSubmitting || isLoading}
-            className="w-full justify-center gap-2 mt-1 py-2 font-semibold text-body-sm"
+            className="w-full justify-center gap-2 mt-1 py-2 font-semibold text-body-sm text-on-primary"
           >
-            <KeyRound className="w-4 h-4" aria-hidden="true" />
+            <KeyRound className="w-4 h-4 text-on-primary" aria-hidden="true" />
             <span>
               {isSubmitting
                 ? 'Processing...'

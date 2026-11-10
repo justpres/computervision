@@ -152,14 +152,6 @@ export default function Home() {
             <h1 className="text-h3 font-semibold text-on-surface truncate">
               Study Session Monitor
             </h1>
-            <span
-              tabIndex={0}
-              title="Experimental: Phase 1 features are functional baselines and are not yet validated for accuracy."
-              aria-label="Experimental: Phase 1 features are functional baselines and are not yet validated for accuracy."
-              className="hidden sm:inline-flex rounded-full bg-experimental-container px-2.5 py-0.5 text-caption font-semibold text-experimental focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            >
-              Experimental
-            </span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
