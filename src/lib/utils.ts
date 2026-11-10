@@ -8,6 +8,7 @@ const customTwMerge = extendTailwindMerge({
         "text-h1",
         "text-h2",
         "text-h3",
+        "text-body",
         "text-body-md",
         "text-body-sm",
         "text-label",

@@ -21,6 +21,7 @@ describe('LiveStatusCard Component', () => {
     expect(screen.getByText('No video is saved · Processed in your browser')).toBeDefined();
 
     const startBtn = screen.getByRole('button', { name: /Start study session/i });
+    expect(startBtn.className).toContain('text-on-primary');
     fireEvent.click(startBtn);
     expect(onStart).toHaveBeenCalledTimes(1);
   });
