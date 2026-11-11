@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils';
  * - primary: bg #0B6477, text #FFFFFF, hover #084E5D, height 44px, radius 10px (rounded-md)
  * - secondary: bg #FFFFFF, text #0B6477, border #D5DEE4, height 44px, radius 10px
  * - danger: bg #B3261E, text #FFFFFF, height 44px, radius 10px
+ * - ghost: bg transparent, text on-surface-muted, hover bg surface
  * - typography: label (14px font-semibold)
- * - WCAG 2.2 AA target: minimum 44px height
+ * - WCAG 2.2 AA target: minimum 44px height for primary controls
  * - Visible focus ring with 2px offset
  */
 export const buttonVariants = cva(
@@ -22,11 +23,14 @@ export const buttonVariants = cva(
           'bg-surface text-primary border border-border hover:bg-background active:bg-background',
         danger:
           'bg-error text-on-error hover:opacity-90 active:opacity-90',
+        ghost:
+          'bg-transparent text-on-surface-muted hover:text-on-surface hover:bg-surface active:bg-surface',
       },
       size: {
         default: 'h-11 px-5 py-3 rounded-md', // 44px height
         sm: 'h-9 px-3.5 py-2 rounded-md',
         lg: 'h-12 px-6 py-3 rounded-md',
+        icon: 'h-9 w-9 p-0 rounded-md',
       },
     },
     defaultVariants: {

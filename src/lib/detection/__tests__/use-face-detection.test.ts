@@ -90,6 +90,62 @@ describe('useFaceDetection Hook', () => {
     expect(result.current.faceDetected).toBe(true);
     expect(result.current.eyeBlinkScore).toBeCloseTo(0.3, 2);
     expect(result.current.processingTimeMs).toBe(15);
+    expect(result.current.lastFrameTimestamp).toBe(1000);
+  });
+
+  it('resets lastFrameTimestamp when monitoring stops and ignores late in-flight FRAME_RESULT messages', () => {
+    const videoRef = { current: null };
+    const { result, rerender } = renderHook(
+      ({ isMonitoring }) => useFaceDetection({ videoRef, isMonitoring }),
+      { initialProps: { isMonitoring: true } }
+    );
+
+    act(() => {
+      mockWorker.onmessage?.({
+        data: { type: 'INIT_SUCCESS' },
+      } as MessageEvent<WorkerResponse>);
+      mockWorker.onmessage?.({
+        data: {
+          type: 'FRAME_RESULT',
+          data: {
+            faceDetected: true,
+            eyeBlinkLeft: 0.7,
+            eyeBlinkRight: 0.7,
+            transformationMatrix: null,
+            timestamp: 2500,
+            processingTimeMs: 12,
+          },
+        },
+      } as MessageEvent<WorkerResponse>);
+    });
+
+    expect(result.current.lastFrameTimestamp).toBe(2500);
+    expect(result.current.faceDetected).toBe(true);
+
+    // Stop monitoring
+    rerender({ isMonitoring: false });
+    expect(result.current.lastFrameTimestamp).toBe(0);
+    expect(result.current.faceDetected).toBe(false);
+
+    // Late in-flight frame arrives after monitoring stopped
+    act(() => {
+      mockWorker.onmessage?.({
+        data: {
+          type: 'FRAME_RESULT',
+          data: {
+            faceDetected: true,
+            eyeBlinkLeft: 0.9,
+            eyeBlinkRight: 0.9,
+            transformationMatrix: null,
+            timestamp: 2625,
+            processingTimeMs: 11,
+          },
+        },
+      } as MessageEvent<WorkerResponse>);
+    });
+
+    expect(result.current.lastFrameTimestamp).toBe(0);
+    expect(result.current.faceDetected).toBe(false);
   });
 
   it('terminates worker on unmount', () => {

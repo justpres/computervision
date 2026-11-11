@@ -41,6 +41,11 @@ export const SessionSettingsSchema = z.object({
     .min(15)
     .max(60)
     .default(DETECTION_DEFAULTS.headTurnYawAngleDegrees),
+  headTiltPitchAngleDegrees: z
+    .number()
+    .min(15)
+    .max(60)
+    .default(DETECTION_DEFAULTS.headTiltPitchAngleDegrees),
   lookingAwayDurationMs: z
     .number()
     .int()
