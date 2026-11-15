@@ -25,13 +25,16 @@ import { FocusStage } from '@/components/session/focus-stage';
 import { EventFeed } from '@/components/session/event-feed';
 import { SettingsModal } from '@/components/session/settings-modal';
 import { SessionHistoryPanel } from '@/components/session/session-history-panel';
+import { SessionSummaryView } from '@/components/analytics/session-summary-view';
+import { BreakReminder } from '@/components/session/break-reminder';
 import { StudentLoginView } from '@/components/auth/student-login-view';
 import { cn } from '@/lib/utils';
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [activeTab, setActiveTab] = useState<'focus' | 'history'>('focus');
+  const [activeTab, setActiveTab] = useState<'focus' | 'analytics' | 'history'>('focus');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBreakReminderOpen, setIsBreakReminderOpen] = useState(false);
   const [savedSessions, setSavedSessions] = useState<SavedSessionSummary[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [lastDeletedSessionId, setLastDeletedSessionId] = useState<
@@ -58,6 +61,7 @@ export default function Home() {
   const {
     status: sessionStatus,
     isMonitoring,
+    elapsedSeconds,
     formattedElapsedTime,
     requestStart,
     confirmConsent,
@@ -159,6 +163,15 @@ export default function Home() {
     transformationMatrix,
     settings,
   ]);
+
+  // Break Reminder triggered after extended continuous study (Feature F-18)
+  useEffect(() => {
+    if (!isMonitoring) return;
+    const triggerSeconds = (settings.breakReminderMinutes || 45) * 60;
+    if (elapsedSeconds > 0 && elapsedSeconds % triggerSeconds === 0) {
+      setIsBreakReminderOpen(true);
+    }
+  }, [isMonitoring, elapsedSeconds, settings.breakReminderMinutes]);
 
   /**
    * Called when user affirmatively gives consent in the ConsentModal.
@@ -350,6 +363,23 @@ export default function Home() {
 
           <button
             type="button"
+            id="tab-analytics"
+            role="tab"
+            aria-selected={activeTab === 'analytics'}
+            aria-controls="tabpanel-analytics"
+            onClick={() => setActiveTab('analytics')}
+            className={cn(
+              'inline-flex items-center gap-2 min-h-[44px] px-4 py-3 text-label font-semibold border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              activeTab === 'analytics'
+                ? 'border-primary text-on-surface'
+                : 'border-transparent text-on-surface-muted hover:text-on-surface hover:border-border'
+            )}
+          >
+            <span>Summary & Timeline</span>
+          </button>
+
+          <button
+            type="button"
             id="tab-history"
             role="tab"
             aria-selected={activeTab === 'history'}
@@ -440,20 +470,39 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Tab 2: Past Sessions View: Dedicated Session History */}
-        <div
-          role="tabpanel"
-          id="tabpanel-history"
-          aria-labelledby="tab-history"
-          className={activeTab === 'history' ? 'block calm-fade-in' : 'hidden'}
-        >
-          <SessionHistoryPanel
-            sessions={savedSessions}
-            isLoading={isLoadingHistory}
-            onDeleteSession={handleDeleteSession}
-            lastDeletedSessionId={lastDeletedSessionId}
-          />
-        </div>
+        {/* Tab 2: Analytics & Timeline View (M3 Feature F-16 & F-17) */}
+        {activeTab === 'analytics' && (
+          <div
+            role="tabpanel"
+            id="tabpanel-analytics"
+            aria-labelledby="tab-analytics"
+            className="block calm-fade-in"
+          >
+            <SessionSummaryView
+              currentSessionEvents={engineState.events}
+              currentSessionDurationSeconds={elapsedSeconds}
+              sessionStartIso={sessionStartIsoRef.current}
+              savedSessions={savedSessions}
+            />
+          </div>
+        )}
+
+        {/* Tab 3: Past Sessions View: Dedicated Session History (M2 Feature F-14 & F-15) */}
+        {activeTab === 'history' && (
+          <div
+            role="tabpanel"
+            id="tabpanel-history"
+            aria-labelledby="tab-history"
+            className="block calm-fade-in"
+          >
+            <SessionHistoryPanel
+              sessions={savedSessions}
+              isLoading={isLoadingHistory}
+              onDeleteSession={handleDeleteSession}
+              lastDeletedSessionId={lastDeletedSessionId}
+            />
+          </div>
+        )}
       </div>
 
       {/* Consent Modal Dialog */}
@@ -475,6 +524,14 @@ export default function Home() {
         currentBlinkLevel={eyeBlinkScore}
         currentYawDegrees={engineState.headAngles?.yawDegrees ?? null}
         currentPitchDegrees={engineState.headAngles?.pitchDegrees ?? null}
+      />
+
+      {/* Gentle Break Reminder Modal Dialog (Feature F-18) */}
+      <BreakReminder
+        isOpen={isBreakReminderOpen}
+        studyDurationMinutes={settings.breakReminderMinutes || 45}
+        onDismiss={() => setIsBreakReminderOpen(false)}
+        onTakeBreak={() => setIsBreakReminderOpen(false)}
       />
     </main>
   );
