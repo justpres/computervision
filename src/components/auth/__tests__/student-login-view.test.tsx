@@ -111,4 +111,39 @@ describe('StudentLoginView Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Try without an account/i }));
     expect(onContinueAsGuest).toHaveBeenCalledTimes(1);
   });
+
+  it('switches to forgot password mode and sends reset link', async () => {
+    const onForgotPassword = vi.fn().mockResolvedValue({ success: true });
+
+    render(
+      <StudentLoginView
+        onSignIn={vi.fn()}
+        onSignUp={vi.fn()}
+        onForgotPassword={onForgotPassword}
+        onContinueAsGuest={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Forgot password\?/i }));
+
+    expect(screen.getByRole('button', { name: /Send reset link/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Back to sign in/i })).toBeDefined();
+
+    fireEvent.change(screen.getByLabelText(/Student Email/i), {
+      target: { value: 'forgot@student.edu' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/i }));
+
+    await waitFor(() => {
+      expect(onForgotPassword).toHaveBeenCalledWith('forgot@student.edu');
+      expect(
+        screen.getByText(/password reset link has been sent/i)
+      ).toBeDefined();
+    });
+
+    // Clicking back to sign in
+    fireEvent.click(screen.getByRole('button', { name: /Back to sign in/i }));
+    expect(screen.getByRole('button', { name: /Sign in to Study Monitor/i })).toBeDefined();
+  });
 });

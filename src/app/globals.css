@@ -44,3 +44,28 @@ body {
 .font-tnum {
   font-variant-numeric: tabular-nums;
 }
+
+/* Calm, non-vestibular opacity fade for tab panels and dialogs (WCAG 2.3.3 AAA) */
+@keyframes calm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.calm-fade-in {
+  animation: calm-fade-in 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

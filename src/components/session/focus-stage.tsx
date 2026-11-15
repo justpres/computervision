@@ -1,16 +1,6 @@
 'use client';
 
 import React from 'react';
-import {
-  Play,
-  Square,
-  Sliders,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
-  EyeOff,
-  Compass,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -47,11 +37,11 @@ function formatSeconds(durationMs: number): string {
 }
 
 /**
- * Dedicated Focus Room stage for active studying:
- * - Prominent, calming digital session timer.
- * - Single high-affordance Start/End study session CTA.
- * - Fixed 3-column horizontal status row that never wraps or shifts layout.
- * - Clean session signs metrics bar.
+ * Focus Room stage built with Swiss-Grid Utilitarian Precision:
+ * - Zero decorative icons.
+ * - Exposed hairline grids instead of nested cards or pill badges.
+ * - 6px solid semantic dot indicators for live sensor states.
+ * - Strict tabular numerals (font-mono tabular-nums) on timer and counters.
  */
 export const FocusStage: React.FC<FocusStageProps> = ({
   isMonitoring,
@@ -74,205 +64,175 @@ export const FocusStage: React.FC<FocusStageProps> = ({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-border bg-surface p-6 sm:p-10 flex flex-col items-center justify-center text-center space-y-8 shadow-sm transition-all',
+        'rounded-md border border-border bg-surface shadow-none flex flex-col justify-between',
         className
       )}
     >
-      {/* Session Title (No redundant status badge) */}
-      <div className="space-y-1 flex flex-col items-center">
-        <h2 className="text-h2 font-semibold text-on-surface">
+      {/* Top Header Strip */}
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+        <h2 className="text-body-sm font-semibold tracking-tight text-on-surface">
           {isMonitoring ? 'Focus Session' : 'Study Session'}
         </h2>
-        <p className="text-caption text-on-surface-muted">
-          {isMonitoring
-            ? 'Monitoring active · Stay focused on your material'
-            : 'Start a session when you are ready to study'}
-        </p>
+        {isMonitoring && (
+          <span className="inline-flex items-center gap-2 text-caption font-medium text-on-surface-muted">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
+            <span>Monitoring is on</span>
+          </span>
+        )}
       </div>
 
-      {/* Prominent Digital Timer */}
-      <div className="flex flex-col items-center justify-center py-2 select-none">
-        <div
-          className="text-6xl sm:text-7xl font-bold tracking-tight text-on-surface tabular-nums"
-          aria-live="polite"
-          aria-label={`Session duration: ${formattedElapsedTime}`}
-        >
-          {formattedElapsedTime}
+      {/* Center Timer & Primary Control */}
+      <div className="px-6 py-10 flex flex-col items-center justify-center text-center space-y-6">
+        <div className="flex flex-col items-center justify-center select-none">
+          <div
+            className="text-6xl sm:text-7xl font-mono font-semibold tracking-tight text-on-surface tabular-nums"
+            aria-live="polite"
+            aria-label={`Session duration: ${formattedElapsedTime}`}
+          >
+            {formattedElapsedTime}
+          </div>
+          <span className="text-caption font-mono uppercase tracking-wider text-on-surface-muted mt-2">
+            {isMonitoring ? 'Elapsed Focus Time' : 'Session Duration'}
+          </span>
         </div>
-        <span className="text-caption uppercase tracking-wider text-on-surface-muted mt-1 font-semibold">
-          {isMonitoring ? 'Elapsed Focus Time' : 'Session Duration'}
-        </span>
-      </div>
 
-      {/* Primary Action Button */}
-      <div className="flex flex-col items-center gap-3">
-        {isMonitoring ? (
+        {/* Primary Action & Sensitivity Control (44px minimum target size) */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {isMonitoring ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="default"
+              onClick={onStop}
+              className="min-h-[44px] px-6 text-body-sm font-semibold text-on-primary rounded-md shadow-none"
+            >
+              <span>End study session</span>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="primary"
+              size="default"
+              onClick={onStart}
+              className="min-h-[44px] px-6 text-body-sm font-semibold text-on-primary rounded-md shadow-none"
+            >
+              <span>Start study session</span>
+            </Button>
+          )}
+
           <Button
             type="button"
             variant="secondary"
-            size="lg"
-            onClick={onStop}
-            className="gap-2.5 h-12 px-8 text-body-md font-semibold rounded-full border-error/50 text-error hover:bg-error-container hover:text-on-error-container transition-all shadow-sm"
+            size="sm"
+            onClick={onOpenSettings}
+            className="min-h-[44px] px-4 text-caption font-medium rounded-md shadow-none"
           >
-            <Square className="w-4 h-4 fill-current" aria-hidden="true" />
-            <span>End study session</span>
+            <span>Adjust detection sensitivity</span>
           </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="primary"
-            size="lg"
-            onClick={onStart}
-            className="gap-2.5 h-12 px-8 text-body-md font-semibold text-on-primary rounded-full shadow-sm hover:shadow transition-all"
-          >
-            <Play className="w-5 h-5 fill-current text-on-primary" aria-hidden="true" />
-            <span>Start study session</span>
-          </Button>
-        )}
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onOpenSettings}
-          className="gap-1.5 text-caption text-on-surface-muted hover:text-on-surface h-8"
-        >
-          <Sliders className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Adjust detection sensitivity</span>
-        </Button>
+        </div>
       </div>
 
-      {/* Live Status Region: Fixed 3-Column Grid (Zero Layout Shift) */}
+      {/* Bottom Hairline Ledger: Active Sensor Status */}
       {isMonitoring && (
-        <div className="w-full max-w-lg space-y-4 pt-2 border-t border-border/60">
+        <div className="border-t border-border bg-surface">
+          {/* Live Status Region: Exposed 3-Column Hairline Grid with 6px Semantic Dots */}
           <div
             role="status"
             aria-live="polite"
-            className="grid grid-cols-3 gap-2 w-full max-w-md mx-auto"
+            className="grid grid-cols-3 divide-x divide-border border-b border-border bg-surface"
           >
             {/* Slot 1: Face Presence */}
-            <div
-              className={cn(
-                'inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-caption font-semibold border transition-colors truncate',
-                faceDetected
-                  ? 'bg-success-container text-success border-success/30'
-                  : 'bg-caution-container text-on-caution-container border-caution/40'
-              )}
-            >
-              {faceDetected ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">Face in view</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">Face: None</span>
-                </>
-              )}
+            <div className="px-3.5 py-2.5 flex items-center justify-between gap-2 truncate bg-surface">
+              <span className="text-caption text-on-surface-muted bg-transparent">Face</span>
+              <span className="inline-flex items-center gap-2 text-caption font-medium text-on-surface truncate bg-transparent">
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full shrink-0',
+                    faceDetected ? 'bg-success' : 'bg-caution'
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="truncate bg-transparent">
+                  {faceDetected ? 'Face in view' : 'No face in view'}
+                </span>
+              </span>
             </div>
 
             {/* Slot 2: Eyes State */}
-            <div
-              className={cn(
-                'inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-caption font-semibold border transition-colors truncate',
-                !faceDetected
-                  ? 'bg-surface text-on-surface-muted border-border'
-                  : isLongEyeClosure || isEyesClosed
-                  ? 'bg-event-eyes-container text-event-eyes border-event-eyes/30'
-                  : 'bg-surface text-on-surface border-border'
-              )}
-            >
-              {!faceDetected ? (
-                <>
-                  <Eye className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">Eyes: —</span>
-                </>
-              ) : isLongEyeClosure ? (
-                <>
-                  <EyeOff className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">
-                    Closed ({formatSeconds(eyeClosureDurationMs)})
-                  </span>
-                </>
-              ) : isEyesClosed ? (
-                <>
-                  <EyeOff className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">
-                    Closed ({formatSeconds(eyeClosureDurationMs)})
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Eye className="w-3.5 h-3.5 shrink-0 text-success" aria-hidden="true" />
-                  <span className="truncate">Eyes open</span>
-                </>
-              )}
+            <div className="px-3.5 py-2.5 flex items-center justify-between gap-2 truncate bg-surface">
+              <span className="text-caption text-on-surface-muted bg-transparent">Eyes</span>
+              <span className="inline-flex items-center gap-2 text-caption font-medium text-on-surface truncate bg-transparent">
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full shrink-0',
+                    !faceDetected
+                      ? 'bg-on-surface-muted/60'
+                      : isLongEyeClosure || isEyesClosed
+                      ? 'bg-event-eyes'
+                      : 'bg-success'
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="truncate font-mono tabular-nums bg-transparent">
+                  {!faceDetected
+                    ? 'Waiting for face'
+                    : isLongEyeClosure || isEyesClosed
+                    ? `Closed (${formatSeconds(eyeClosureDurationMs)})`
+                    : 'Eyes open'}
+                </span>
+              </span>
             </div>
 
             {/* Slot 3: Head Direction */}
-            <div
-              className={cn(
-                'inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-caption font-semibold border transition-colors truncate',
-                !faceDetected
-                  ? 'bg-surface text-on-surface-muted border-border'
-                  : isLookingAway
-                  ? 'bg-event-away-container text-event-away border-event-away/30'
-                  : isHeadTurned || isHeadTilted
-                  ? 'bg-event-head-container text-event-head border-event-head/30'
-                  : 'bg-surface text-on-surface border-border'
-              )}
-            >
-              {!faceDetected ? (
-                <>
-                  <Compass className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">Head: —</span>
-                </>
-              ) : isLookingAway ? (
-                <>
-                  <Compass className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">
-                    Away ({formatSeconds(lookingAwayDurationMs)})
-                  </span>
-                </>
-              ) : isHeadTurned ? (
-                <>
-                  <Compass className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">
-                    Turned ({formatSeconds(headPoseDurationMs)})
-                  </span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-success" aria-hidden="true" />
-                  <span className="truncate">Head centered</span>
-                </>
-              )}
+            <div className="px-3.5 py-2.5 flex items-center justify-between gap-2 truncate bg-surface">
+              <span className="text-caption text-on-surface-muted bg-transparent">Head</span>
+              <span className="inline-flex items-center gap-2 text-caption font-medium text-on-surface truncate bg-transparent">
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full shrink-0',
+                    !faceDetected
+                      ? 'bg-on-surface-muted/60'
+                      : isLookingAway
+                      ? 'bg-event-away'
+                      : isHeadTurned || isHeadTilted
+                      ? 'bg-event-head'
+                      : 'bg-success'
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="truncate font-mono tabular-nums bg-transparent">
+                  {!faceDetected
+                    ? 'Waiting for face'
+                    : isLookingAway
+                    ? `Away (${formatSeconds(lookingAwayDurationMs)})`
+                    : isHeadTurned
+                    ? `Turned (${formatSeconds(headPoseDurationMs)})`
+                    : 'Head centered'}
+                </span>
+              </span>
             </div>
           </div>
 
-          {/* Quick Active Session Metrics */}
-          <div className="flex flex-wrap items-center justify-center gap-4 text-caption text-on-surface-muted pt-1">
-            <span>
-              Total signs recorded:{' '}
-              <strong className="text-on-surface tabular-nums">
+          {/* Unified Active Session Counter Strip */}
+          <div className="grid grid-cols-3 divide-x divide-border px-4 py-2.5 text-caption text-on-surface-muted bg-surface">
+            <div className="flex items-center justify-between pr-3 bg-transparent">
+              <span className="bg-transparent">Total signs</span>
+              <strong className="font-mono text-on-surface tabular-nums bg-transparent">
                 {eventCounts.total}
               </strong>
-            </span>
-            <span>·</span>
-            <span>
-              Eyes closed:{' '}
-              <strong className="text-on-surface tabular-nums">
+            </div>
+            <div className="flex items-center justify-between px-3 bg-transparent">
+              <span className="bg-transparent">Eyes closed</span>
+              <strong className="font-mono text-on-surface tabular-nums bg-transparent">
                 {eventCounts.eyesClosed}
               </strong>
-            </span>
-            <span>·</span>
-            <span>
-              Head turned:{' '}
-              <strong className="text-on-surface tabular-nums">
+            </div>
+            <div className="flex items-center justify-between pl-3 bg-transparent">
+              <span className="bg-transparent">Head turned</span>
+              <strong className="font-mono text-on-surface tabular-nums bg-transparent">
                 {eventCounts.headTurned}
               </strong>
-            </span>
+            </div>
           </div>
         </div>
       )}

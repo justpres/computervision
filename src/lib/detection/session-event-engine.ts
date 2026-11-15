@@ -19,7 +19,11 @@ import {
  * and maintains an in-memory event list for the live UI.
  */
 
-export type ObservableDetectionEventType = 'eyes_closed' | 'head_turned';
+export type ObservableDetectionEventType =
+  | 'eyes_closed'
+  | 'long_eye_closure'
+  | 'head_turned'
+  | 'looking_away';
 
 export interface SessionDetectionEvent {
   id: string;
@@ -30,11 +34,21 @@ export interface SessionDetectionEvent {
   startedAtIso: string;
 }
 
+export interface SessionEventCounts {
+  eyesClosed: number;
+  longEyeClosure: number;
+  headTurned: number;
+  lookingAway: number;
+  total: number;
+}
+
 export interface DetectionEngineThresholds {
   eyeClosedScoreThreshold?: number;
   eyeClosedDurationMs?: number;
+  longEyeClosureDurationMs?: number;
   headTurnYawAngleDegrees?: number;
   headTiltPitchAngleDegrees?: number;
+  lookingAwayDurationMs?: number;
   eventMergeDebounceMs?: number;
 }
 
@@ -44,6 +58,7 @@ export interface SessionEventEngineState {
   averageBlinkScore: number;
   headAngles: HeadEulerAngles | null;
   events: SessionDetectionEvent[];
+  counts: SessionEventCounts;
   nextEventSeq: number;
 }
 
@@ -58,6 +73,43 @@ export interface EngineFrameInput {
 }
 
 /**
+ * Computes debounced per-category event counts from the session event list.
+ */
+export function computeSessionEventCounts(
+  events: readonly SessionDetectionEvent[]
+): SessionEventCounts {
+  let eyesClosed = 0;
+  let longEyeClosure = 0;
+  let headTurned = 0;
+  let lookingAway = 0;
+
+  for (const evt of events) {
+    switch (evt.eventType) {
+      case 'eyes_closed':
+        eyesClosed++;
+        break;
+      case 'long_eye_closure':
+        longEyeClosure++;
+        break;
+      case 'head_turned':
+        headTurned++;
+        break;
+      case 'looking_away':
+        lookingAway++;
+        break;
+    }
+  }
+
+  return {
+    eyesClosed,
+    longEyeClosure,
+    headTurned,
+    lookingAway,
+    total: events.length,
+  };
+}
+
+/**
  * Creates a clean initial state for the session event engine.
  */
 export function createInitialSessionEventEngineState(): SessionEventEngineState {
@@ -67,6 +119,13 @@ export function createInitialSessionEventEngineState(): SessionEventEngineState 
     averageBlinkScore: 0,
     headAngles: null,
     events: [],
+    counts: {
+      eyesClosed: 0,
+      longEyeClosure: 0,
+      headTurned: 0,
+      lookingAway: 0,
+      total: 0,
+    },
     nextEventSeq: 1,
   };
 }
@@ -145,6 +204,7 @@ export function processSessionFrame(
     timestampMs: input.timestampMs,
     scoreThreshold: thresholds.eyeClosedScoreThreshold,
     durationThresholdMs: thresholds.eyeClosedDurationMs,
+    longDurationThresholdMs: thresholds.longEyeClosureDurationMs,
   });
 
   const headEval = evaluateHeadPose(prevState.headPose, {
@@ -154,6 +214,7 @@ export function processSessionFrame(
     yawThresholdDegrees: thresholds.headTurnYawAngleDegrees,
     pitchThresholdDegrees: thresholds.headTiltPitchAngleDegrees,
     minEventDurationMs: thresholds.eyeClosedDurationMs,
+    lookingAwayDurationMs: thresholds.lookingAwayDurationMs,
   });
 
   let events = prevState.events;
@@ -183,12 +244,18 @@ export function processSessionFrame(
     nextEventSeq = res.nextSeq;
   }
 
+  const counts =
+    events === prevState.events
+      ? prevState.counts
+      : computeSessionEventCounts(events);
+
   return {
     eyeClosure: eyeEval.state,
     headPose: headEval.state,
     averageBlinkScore: eyeEval.averageBlinkScore,
     headAngles: headEval.angles,
     events,
+    counts,
     nextEventSeq,
   };
 }

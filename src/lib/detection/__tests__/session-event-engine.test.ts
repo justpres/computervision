@@ -198,5 +198,93 @@ describe('Session Event Engine', () => {
     expect(finalized.eyeClosure.isClosed).toBe(false);
     expect(finalized.events).toHaveLength(1);
     expect(finalized.events[0].durationMs).toBe(1600);
+    expect(finalized.counts).toEqual({
+      eyesClosed: 1,
+      longEyeClosure: 0,
+      headTurned: 0,
+      lookingAway: 0,
+      total: 1,
+    });
+  });
+
+  it('tracks accurate per-category SessionEventCounts across eyes_closed, long_eye_closure, head_turned, and looking_away while ignoring brief blinks and glances', () => {
+    let state = createInitialSessionEventEngineState();
+
+    // 1. Brief blink (400ms < 1000ms) & quick glance (400ms < 1000ms) -> ignored
+    state = processSessionFrame(state, {
+      faceDetected: true,
+      eyeBlinkLeft: 0.85,
+      eyeBlinkRight: 0.85,
+      transformationMatrix: turnedMatrix,
+      timestampMs: 1000,
+    });
+    state = processSessionFrame(state, {
+      faceDetected: true,
+      eyeBlinkLeft: 0.1,
+      eyeBlinkRight: 0.1,
+      transformationMatrix: neutralMatrix,
+      timestampMs: 1400,
+    });
+    expect(state.counts).toEqual({
+      eyesClosed: 0,
+      longEyeClosure: 0,
+      headTurned: 0,
+      lookingAway: 0,
+      total: 0,
+    });
+
+    // 2. Long eye closure (2500ms >= 2000ms) AND Looking away (3500ms >= 3000ms)
+    state = processSessionFrame(state, {
+      faceDetected: true,
+      eyeBlinkLeft: 0.85,
+      eyeBlinkRight: 0.85,
+      transformationMatrix: turnedMatrix,
+      timestampMs: 5000,
+    });
+    state = processSessionFrame(state, {
+      faceDetected: true,
+      eyeBlinkLeft: 0.85,
+      eyeBlinkRight: 0.85,
+      transformationMatrix: turnedMatrix,
+      timestampMs: 7500, // 2500ms elapsed: long eye closure active
+    });
+    expect(state.eyeClosure.isLongClosure).toBe(true);
+    expect(state.headPose.isLookingAway).toBe(false);
+
+    // Eyes open at 7600ms (2600ms total -> long_eye_closure), head stays turned
+    state = processSessionFrame(state, {
+      faceDetected: true,
+      eyeBlinkLeft: 0.1,
+      eyeBlinkRight: 0.1,
+      transformationMatrix: turnedMatrix,
+      timestampMs: 7600,
+    });
+    expect(state.counts.longEyeClosure).toBe(1);
+
+    // Head stays turned past 8000ms (3200ms total -> looking_away) then centers at 8500ms
+    state = processSessionFrame(state, {
+      faceDetected: true,
+      eyeBlinkLeft: 0.1,
+      eyeBlinkRight: 0.1,
+      transformationMatrix: turnedMatrix,
+      timestampMs: 8200,
+    });
+    expect(state.headPose.isLookingAway).toBe(true);
+
+    state = processSessionFrame(state, {
+      faceDetected: true,
+      eyeBlinkLeft: 0.1,
+      eyeBlinkRight: 0.1,
+      transformationMatrix: neutralMatrix,
+      timestampMs: 8500,
+    });
+
+    expect(state.counts).toEqual({
+      eyesClosed: 0,
+      longEyeClosure: 1,
+      headTurned: 0,
+      lookingAway: 1,
+      total: 2,
+    });
   });
 });

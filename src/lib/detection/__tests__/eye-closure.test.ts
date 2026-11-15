@@ -213,5 +213,90 @@ describe('Eye Closure Rule', () => {
       expect(outOfOrder.state.continuousDurationMs).toBe(0);
       expect(outOfOrder.state.isEventActive).toBe(false);
     });
+
+    it('promotes continuous eye closures >= 2000ms to long_eye_closure events', () => {
+      let state = createInitialEyeClosureState();
+
+      // t = 1000ms: closure starts
+      state = evaluateEyeClosure(state, {
+        faceDetected: true,
+        eyeBlinkLeft: 0.78,
+        eyeBlinkRight: 0.82,
+        timestampMs: 1000,
+      }).state;
+      expect(state.isEventActive).toBe(false);
+      expect(state.isLongClosure).toBe(false);
+
+      // t = 2500ms: 1500ms elapsed -> standard eyes_closed active, not yet long closure
+      state = evaluateEyeClosure(state, {
+        faceDetected: true,
+        eyeBlinkLeft: 0.8,
+        eyeBlinkRight: 0.8,
+        timestampMs: 2500,
+      }).state;
+      expect(state.isEventActive).toBe(true);
+      expect(state.isLongClosure).toBe(false);
+
+      // t = 3000ms: 2000ms elapsed -> crosses longDurationThresholdMs (2000ms)
+      state = evaluateEyeClosure(state, {
+        faceDetected: true,
+        eyeBlinkLeft: 0.85,
+        eyeBlinkRight: 0.85,
+        timestampMs: 3000,
+      }).state;
+      expect(state.isEventActive).toBe(true);
+      expect(state.isLongClosure).toBe(true);
+
+      // t = 3400ms: eyes reopen -> emits long_eye_closure with 2400ms duration
+      const done = evaluateEyeClosure(state, {
+        faceDetected: true,
+        eyeBlinkLeft: 0.1,
+        eyeBlinkRight: 0.1,
+        timestampMs: 3400,
+      });
+      expect(done.state.isClosed).toBe(false);
+      expect(done.state.isLongClosure).toBe(false);
+      expect(done.completedEvent).toEqual({
+        eventType: 'long_eye_closure',
+        startedAtMs: 1000,
+        endedAtMs: 3400,
+        durationMs: 2400,
+      });
+    });
+
+    it('respects custom longDurationThresholdMs and enforces >= durationThresholdMs', () => {
+      let state = createInitialEyeClosureState();
+
+      state = evaluateEyeClosure(state, {
+        faceDetected: true,
+        eyeBlinkLeft: 0.8,
+        eyeBlinkRight: 0.8,
+        timestampMs: 0,
+        durationThresholdMs: 1000,
+        longDurationThresholdMs: 3000,
+      }).state;
+
+      // At 2500ms (< custom 3000ms long threshold), should still be standard eyes_closed
+      state = evaluateEyeClosure(state, {
+        faceDetected: true,
+        eyeBlinkLeft: 0.8,
+        eyeBlinkRight: 0.8,
+        timestampMs: 2500,
+        durationThresholdMs: 1000,
+        longDurationThresholdMs: 3000,
+      }).state;
+      expect(state.isEventActive).toBe(true);
+      expect(state.isLongClosure).toBe(false);
+
+      const reopen = evaluateEyeClosure(state, {
+        faceDetected: true,
+        eyeBlinkLeft: 0.1,
+        eyeBlinkRight: 0.1,
+        timestampMs: 2600,
+        durationThresholdMs: 1000,
+        longDurationThresholdMs: 3000,
+      });
+      expect(reopen.completedEvent?.eventType).toBe('eyes_closed');
+    });
   });
 });

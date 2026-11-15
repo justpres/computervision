@@ -30,6 +30,12 @@ export const SAFE_SETTINGS_BOUNDS = {
     step: 100,
     default: DETECTION_DEFAULTS.eyeClosedDurationMs,
   },
+  longEyeClosureDurationMs: {
+    min: 1500,
+    max: 10000,
+    step: 500,
+    default: DETECTION_DEFAULTS.longEyeClosureDurationMs,
+  },
   headTurnYawAngleDegrees: {
     min: 15,
     max: 50,
@@ -41,6 +47,12 @@ export const SAFE_SETTINGS_BOUNDS = {
     max: 50,
     step: 1,
     default: DETECTION_DEFAULTS.headTiltPitchAngleDegrees,
+  },
+  lookingAwayDurationMs: {
+    min: 1500,
+    max: 10000,
+    step: 500,
+    default: DETECTION_DEFAULTS.lookingAwayDurationMs,
   },
 } as const;
 
@@ -65,6 +77,15 @@ export function sanitizeSessionSettings(raw: unknown): SessionSettings {
 
   const record = raw as Record<string, unknown>;
 
+  const eyeClosedDurationMs = Math.round(
+    clampNumber(
+      record.eyeClosedDurationMs,
+      SAFE_SETTINGS_BOUNDS.eyeClosedDurationMs.min,
+      SAFE_SETTINGS_BOUNDS.eyeClosedDurationMs.max,
+      DEFAULT_SESSION_SETTINGS.eyeClosedDurationMs
+    )
+  );
+
   const candidate = {
     eyeClosedScoreThreshold:
       Math.round(
@@ -75,20 +96,19 @@ export function sanitizeSessionSettings(raw: unknown): SessionSettings {
           DEFAULT_SESSION_SETTINGS.eyeClosedScoreThreshold
         ) * 100
       ) / 100,
-    eyeClosedDurationMs: Math.round(
-      clampNumber(
-        record.eyeClosedDurationMs,
-        SAFE_SETTINGS_BOUNDS.eyeClosedDurationMs.min,
-        SAFE_SETTINGS_BOUNDS.eyeClosedDurationMs.max,
-        DEFAULT_SESSION_SETTINGS.eyeClosedDurationMs
-      )
-    ),
+    eyeClosedDurationMs,
     longEyeClosureDurationMs: Math.round(
       clampNumber(
         record.longEyeClosureDurationMs,
-        1000,
-        10000,
-        DEFAULT_SESSION_SETTINGS.longEyeClosureDurationMs
+        Math.max(
+          SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.min,
+          eyeClosedDurationMs
+        ),
+        SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.max,
+        Math.max(
+          DEFAULT_SESSION_SETTINGS.longEyeClosureDurationMs,
+          eyeClosedDurationMs
+        )
       )
     ),
     headTurnYawAngleDegrees: Math.round(
@@ -110,8 +130,8 @@ export function sanitizeSessionSettings(raw: unknown): SessionSettings {
     lookingAwayDurationMs: Math.round(
       clampNumber(
         record.lookingAwayDurationMs,
-        1000,
-        10000,
+        SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.min,
+        SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.max,
         DEFAULT_SESSION_SETTINGS.lookingAwayDurationMs
       )
     ),
@@ -162,6 +182,29 @@ export function validateSettingsUpdate(
   }
 
   if (
+    update.eyeClosedDurationMs !== undefined &&
+    update.longEyeClosureDurationMs === undefined &&
+    merged.longEyeClosureDurationMs < merged.eyeClosedDurationMs
+  ) {
+    merged.longEyeClosureDurationMs = merged.eyeClosedDurationMs;
+  }
+
+  if (
+    !Number.isFinite(merged.longEyeClosureDurationMs) ||
+    merged.longEyeClosureDurationMs < SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.min ||
+    merged.longEyeClosureDurationMs > SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.max ||
+    merged.longEyeClosureDurationMs < merged.eyeClosedDurationMs
+  ) {
+    return {
+      success: false,
+      error: `Long eye closure duration must be between ${Math.max(
+        SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.min,
+        merged.eyeClosedDurationMs
+      )} ms and ${SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.max} ms.`,
+    };
+  }
+
+  if (
     !Number.isFinite(merged.headTurnYawAngleDegrees) ||
     merged.headTurnYawAngleDegrees < SAFE_SETTINGS_BOUNDS.headTurnYawAngleDegrees.min ||
     merged.headTurnYawAngleDegrees > SAFE_SETTINGS_BOUNDS.headTurnYawAngleDegrees.max
@@ -180,6 +223,17 @@ export function validateSettingsUpdate(
     return {
       success: false,
       error: `Head tilt angle must be between ${SAFE_SETTINGS_BOUNDS.headTiltPitchAngleDegrees.min}° and ${SAFE_SETTINGS_BOUNDS.headTiltPitchAngleDegrees.max}°.`,
+    };
+  }
+
+  if (
+    !Number.isFinite(merged.lookingAwayDurationMs) ||
+    merged.lookingAwayDurationMs < SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.min ||
+    merged.lookingAwayDurationMs > SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.max
+  ) {
+    return {
+      success: false,
+      error: `Looking-away duration must be between ${SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.min} ms and ${SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.max} ms.`,
     };
   }
 

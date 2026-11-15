@@ -1,7 +1,6 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { ShieldCheck, VideoOff, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface ConsentModalProps {
@@ -11,9 +10,9 @@ export interface ConsentModalProps {
 }
 
 /**
- * Consent screen modal:
+ * Consent screen modal (Swiss-Grid Utilitarian Precision):
  * - Equal button sizes, no pre-checked items, no guilt wording.
- * - Transparent disclosures (no video saved, browser-only, full user control).
+ * - Zero decorative icons and zero nested boxes: exposed hairline rows (`divide-y divide-border`).
  * - Accessible dialog pattern with keyboard support (Esc closes) and focus management.
  */
 export const ConsentModal: React.FC<ConsentModalProps> = ({
@@ -46,7 +45,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-4 transition-opacity animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 backdrop-blur-sm p-4 calm-fade-in"
       role="presentation"
       onClick={onDecline}
     >
@@ -55,75 +54,60 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
         aria-modal="true"
         aria-labelledby="consent-title"
         aria-describedby="consent-description"
-        className="w-full max-w-lg rounded-lg bg-surface p-6 border border-border shadow-lg space-y-6"
+        className="w-full max-w-lg rounded-md bg-surface border border-border shadow-md divide-y divide-border"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 text-primary">
-            <ShieldCheck className="w-5 h-5 text-primary" aria-hidden="true" />
-            <span className="text-label text-primary uppercase tracking-wide">
-              Privacy & Consent
-            </span>
-          </div>
-          <h2 id="consent-title" className="text-h2 font-semibold text-on-surface">
+        <div className="px-5 py-4 space-y-1">
+          <span className="block font-mono text-[11px] font-semibold text-on-surface-muted uppercase tracking-wider">
+            Privacy &amp; Consent
+          </span>
+          <h2 id="consent-title" className="text-h3 font-semibold tracking-tight text-on-surface">
             Study Session Monitoring Consent
           </h2>
-          <p id="consent-description" className="text-body-sm text-on-surface-muted">
-            Before monitoring starts, here is exactly what this system does and does not do.
+          <p id="consent-description" className="text-caption text-on-surface-muted">
+            Before monitoring starts, here is what this system measures and what stays private.
           </p>
         </div>
 
-        {/* Fact Cards */}
-        <div className="space-y-3">
-          {/* What is measured */}
-          <div className="flex gap-3 p-3.5 rounded-md bg-background border border-border">
-            <Lock className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-            <div className="space-y-1">
-              <h3 className="text-label text-on-surface">What is measured</h3>
-              <p className="text-body-sm text-on-surface-muted">
-                Simple observable signs (eyes closed, head turned, looking away) computed strictly inside your browser.
-              </p>
-            </div>
+        {/* Hairline Fact Rows (Zero Nested Cards) */}
+        <div className="divide-y divide-border">
+          <div className="px-5 py-3.5 space-y-0.5">
+            <h3 className="text-caption font-semibold text-on-surface">What is measured</h3>
+            <p className="text-caption text-on-surface-muted">
+              Simple observable signs (eyes closed, head turned, looking away) computed strictly inside your browser.
+            </p>
           </div>
 
-          {/* What is never saved */}
-          <div className="flex gap-3 p-3.5 rounded-md bg-background border border-border">
-            <VideoOff className="w-5 h-5 text-secondary shrink-0 mt-0.5" aria-hidden="true" />
-            <div className="space-y-1">
-              <h3 className="text-label text-on-surface">What is never saved or sent</h3>
-              <p className="text-body-sm text-on-surface-muted">
-                No video, camera frames, or facial landmarks are ever saved or uploaded. Only event timestamps and durations are kept.
-              </p>
-            </div>
+          <div className="px-5 py-3.5 space-y-0.5">
+            <h3 className="text-caption font-semibold text-on-surface">What is never saved or sent</h3>
+            <p className="text-caption text-on-surface-muted">
+              No video, camera frames, or facial landmarks are ever saved or uploaded. Only event timestamps and durations are kept.
+            </p>
           </div>
 
-          {/* Control */}
-          <div className="flex gap-3 p-3.5 rounded-md bg-background border border-border">
-            <ShieldCheck className="w-5 h-5 text-success shrink-0 mt-0.5" aria-hidden="true" />
-            <div className="space-y-1">
-              <h3 className="text-label text-on-surface">Your control</h3>
-              <p className="text-body-sm text-on-surface-muted">
-                You can stop monitoring at any time. Session records can be deleted whenever you wish.
-              </p>
-            </div>
+          <div className="px-5 py-3.5 space-y-0.5">
+            <h3 className="text-caption font-semibold text-on-surface">Your control</h3>
+            <p className="text-caption text-on-surface-muted">
+              You can stop monitoring at any time. Session records can be deleted whenever you wish.
+            </p>
           </div>
         </div>
 
         {/* Equal Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row gap-3 px-5 py-4 bg-background/40">
           <Button
             ref={agreeButtonRef}
             variant="primary"
             onClick={onAgree}
-            className="flex-1"
+            className="flex-1 rounded-md shadow-none"
           >
             I agree and start
           </Button>
           <Button
             variant="secondary"
             onClick={onDecline}
-            className="flex-1"
+            className="flex-1 rounded-md shadow-none"
           >
             Not now
           </Button>

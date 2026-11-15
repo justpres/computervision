@@ -32,10 +32,16 @@ export interface HeadPoseState {
   continuousDurationMs: number;
   /** True once continuousDurationMs reaches or exceeds minEventDurationMs (default 1000ms) */
   isEventActive: boolean;
+  /** Timestamp (ms) when continuous horizontal yaw turn began, or null when not turned horizontally */
+  yawTurnStartTimeMs: number | null;
+  /** Continuous duration (ms) of horizontal yaw turn */
+  yawTurnDurationMs: number;
+  /** True once continuous horizontal yaw turn reaches or exceeds lookingAwayDurationMs (default 3000ms) */
+  isLookingAway: boolean;
 }
 
 export interface CompletedHeadPoseEvent {
-  eventType: 'head_turned';
+  eventType: 'head_turned' | 'looking_away';
   startedAtMs: number;
   endedAtMs: number;
   durationMs: number;
@@ -48,6 +54,7 @@ export interface HeadPoseFrameInput {
   yawThresholdDegrees?: number;
   pitchThresholdDegrees?: number;
   minEventDurationMs?: number;
+  lookingAwayDurationMs?: number;
 }
 
 export interface HeadPoseEvaluation {
@@ -57,7 +64,7 @@ export interface HeadPoseEvaluation {
   state: HeadPoseState;
   /** True on the exact frame where continuous head turn/tilt reaches minEventDurationMs */
   justTriggered: boolean;
-  /** Populated when an active head_turned event ends (head centers or face leaves view) */
+  /** Populated when an active head_turned or looking_away event ends (head centers or face leaves view) */
   completedEvent: CompletedHeadPoseEvent | null;
 }
 
@@ -85,6 +92,9 @@ export function createInitialHeadPoseState(): HeadPoseState {
     deviatedSinceMs: null,
     continuousDurationMs: 0,
     isEventActive: false,
+    yawTurnStartTimeMs: null,
+    yawTurnDurationMs: 0,
+    isLookingAway: false,
   };
 }
 
@@ -239,6 +249,14 @@ export function evaluateHeadPose(
     input.pitchThresholdDegrees ?? DETECTION_DEFAULTS.headTiltPitchAngleDegrees;
   const minEventDurationMs =
     input.minEventDurationMs ?? DETECTION_DEFAULTS.eyeClosedDurationMs;
+  const rawLookingAwayMs =
+    input.lookingAwayDurationMs ?? DETECTION_DEFAULTS.lookingAwayDurationMs;
+  const lookingAwayDurationMs = Math.max(
+    minEventDurationMs,
+    Number.isFinite(rawLookingAwayMs)
+      ? rawLookingAwayMs
+      : DETECTION_DEFAULTS.lookingAwayDurationMs
+  );
 
   const yawThreshold = Number.isFinite(rawYawThreshold)
     ? Math.min(60, Math.max(15, rawYawThreshold))
@@ -251,25 +269,53 @@ export function evaluateHeadPose(
     ? input.timestampMs
     : (prevState.deviatedSinceMs ?? 0);
 
+  const buildCompletedHeadEvent = (
+    stateToFinalize: HeadPoseState,
+    endTimestampMs: number
+  ): CompletedHeadPoseEvent | null => {
+    if (!stateToFinalize.isEventActive || stateToFinalize.deviatedSinceMs === null) {
+      return null;
+    }
+
+    const yawDurationOnEnd =
+      stateToFinalize.isTurned && stateToFinalize.yawTurnStartTimeMs !== null
+        ? Math.max(
+            stateToFinalize.yawTurnDurationMs,
+            Math.round(
+              Math.max(stateToFinalize.yawTurnStartTimeMs, endTimestampMs) -
+                stateToFinalize.yawTurnStartTimeMs
+            )
+          )
+        : stateToFinalize.yawTurnDurationMs;
+
+    const isLookingAway =
+      stateToFinalize.isLookingAway || yawDurationOnEnd >= lookingAwayDurationMs;
+
+    const startedAtMs =
+      isLookingAway && stateToFinalize.yawTurnStartTimeMs !== null
+        ? stateToFinalize.yawTurnStartTimeMs
+        : stateToFinalize.deviatedSinceMs;
+
+    const endedAtMs = Math.max(startedAtMs, endTimestampMs);
+    const durationMs = Math.max(
+      isLookingAway ? yawDurationOnEnd : stateToFinalize.continuousDurationMs,
+      Math.round(endedAtMs - startedAtMs)
+    );
+
+    return {
+      eventType: isLookingAway ? 'looking_away' : 'head_turned',
+      startedAtMs,
+      endedAtMs,
+      durationMs,
+    };
+  };
+
   const angles = input.faceDetected
     ? extractEulerAnglesFromMatrix(input.transformationMatrix)
     : null;
 
   if (!angles) {
-    let completedEvent: CompletedHeadPoseEvent | null = null;
-    if (prevState.isEventActive && prevState.deviatedSinceMs !== null) {
-      const endedAtMs = Math.max(prevState.deviatedSinceMs, safeTimestampMs);
-      const durationMs = Math.max(
-        prevState.continuousDurationMs,
-        Math.round(endedAtMs - prevState.deviatedSinceMs)
-      );
-      completedEvent = {
-        eventType: 'head_turned',
-        startedAtMs: prevState.deviatedSinceMs,
-        endedAtMs,
-        durationMs,
-      };
-    }
+    const completedEvent = buildCompletedHeadEvent(prevState, safeTimestampMs);
 
     return {
       angles: null,
@@ -284,9 +330,20 @@ export function evaluateHeadPose(
   const isDeviated = isTurned || isTilted;
 
   if (isDeviated) {
+    // If the user was looking away (horizontal yaw turn >= lookingAwayDurationMs)
+    // and now centered yaw while remaining tilted, finalize the looking_away event
+    // and start a fresh tilt-only tracking window.
+    let completedEvent: CompletedHeadPoseEvent | null = null;
+    let basePrevState = prevState;
+
+    if (prevState.isLookingAway && !isTurned) {
+      completedEvent = buildCompletedHeadEvent(prevState, safeTimestampMs);
+      basePrevState = createInitialHeadPoseState();
+    }
+
     const deviatedSinceMs =
-      prevState.isDeviated && prevState.deviatedSinceMs !== null
-        ? prevState.deviatedSinceMs
+      basePrevState.isDeviated && basePrevState.deviatedSinceMs !== null
+        ? basePrevState.deviatedSinceMs
         : safeTimestampMs;
 
     const continuousDurationMs = Math.max(
@@ -294,7 +351,21 @@ export function evaluateHeadPose(
       Math.round(safeTimestampMs - deviatedSinceMs)
     );
     const isEventActive = continuousDurationMs >= minEventDurationMs;
-    const justTriggered = isEventActive && !prevState.isEventActive;
+    const justTriggered = isEventActive && !basePrevState.isEventActive;
+
+    const yawTurnStartTimeMs = isTurned
+      ? basePrevState.isTurned && basePrevState.yawTurnStartTimeMs !== null
+        ? basePrevState.yawTurnStartTimeMs
+        : safeTimestampMs
+      : null;
+
+    const yawTurnDurationMs =
+      isTurned && yawTurnStartTimeMs !== null
+        ? Math.max(0, Math.round(safeTimestampMs - yawTurnStartTimeMs))
+        : 0;
+
+    const isLookingAway =
+      isTurned && yawTurnDurationMs >= lookingAwayDurationMs;
 
     return {
       angles,
@@ -305,27 +376,17 @@ export function evaluateHeadPose(
         deviatedSinceMs,
         continuousDurationMs,
         isEventActive,
+        yawTurnStartTimeMs,
+        yawTurnDurationMs,
+        isLookingAway,
       },
       justTriggered,
-      completedEvent: null,
+      completedEvent,
     };
   }
 
   // Head returned to neutral center pose
-  let completedEvent: CompletedHeadPoseEvent | null = null;
-  if (prevState.isEventActive && prevState.deviatedSinceMs !== null) {
-    const endedAtMs = Math.max(prevState.deviatedSinceMs, safeTimestampMs);
-    const durationMs = Math.max(
-      prevState.continuousDurationMs,
-      Math.round(endedAtMs - prevState.deviatedSinceMs)
-    );
-    completedEvent = {
-      eventType: 'head_turned',
-      startedAtMs: prevState.deviatedSinceMs,
-      endedAtMs,
-      durationMs,
-    };
-  }
+  const completedEvent = buildCompletedHeadEvent(prevState, safeTimestampMs);
 
   return {
     angles,

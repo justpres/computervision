@@ -1,5 +1,5 @@
 import React from 'react';
-import { EyeOff, Compass, Activity } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type {
   ObservableDetectionEventType,
@@ -14,21 +14,28 @@ export interface EventFeedProps {
 
 function getEventDisplayMeta(eventType: ObservableDetectionEventType): {
   label: string;
-  toneClass: string;
-  icon: typeof EyeOff;
+  badgeVariant: 'event-eyes' | 'event-head' | 'event-away';
 } {
   switch (eventType) {
     case 'eyes_closed':
       return {
         label: 'Eyes closed',
-        toneClass: 'text-event-eyes',
-        icon: EyeOff,
+        badgeVariant: 'event-eyes',
+      };
+    case 'long_eye_closure':
+      return {
+        label: 'Long eye closure',
+        badgeVariant: 'event-eyes',
       };
     case 'head_turned':
       return {
         label: 'Head turned',
-        toneClass: 'text-event-head',
-        icon: Compass,
+        badgeVariant: 'event-head',
+      };
+    case 'looking_away':
+      return {
+        label: 'Looking away',
+        badgeVariant: 'event-away',
       };
   }
 }
@@ -41,11 +48,10 @@ function formatEventTime(isoString?: string): string | null {
 }
 
 /**
- * Clean vertical activity timeline for observable session events (M1 baseline):
- * - Shows recent events in reverse chronological order (newest on top).
- * - Fixed, aligned row structure eliminates jagged line wraps.
- * - Non-punitive, plain-spoken wording ("Recent activity", "signs").
- * - Pairs icons with text labels per WCAG 2.1 AAA / DR-03.
+ * Clean vertical activity timeline for observable session events (Swiss-Grid Utilitarian Precision):
+ * - Zero decorative icons (no <Activity />, <Clock />, <Compass />).
+ * - Sharp mechanical tags (<Badge />) and exposed hairline rows.
+ * - Strict tabular numerals (font-mono tabular-nums).
  */
 export const EventFeed: React.FC<EventFeedProps> = ({
   events,
@@ -58,53 +64,45 @@ export const EventFeed: React.FC<EventFeedProps> = ({
     <section
       aria-labelledby="event-feed-heading"
       className={cn(
-        'rounded-lg border border-border bg-surface p-5 space-y-3 shadow-none',
+        'rounded-md border border-border bg-surface shadow-none divide-y divide-border',
         className
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-primary" aria-hidden="true" />
-          <h3 id="event-feed-heading" className="text-h3 font-semibold text-on-surface">
-            Recent activity
-          </h3>
-        </div>
-        <span className="text-caption text-on-surface-muted tabular-nums">
+      <div className="flex items-center justify-between gap-2 px-4 py-3">
+        <h3 id="event-feed-heading" className="text-body-sm font-semibold tracking-tight text-on-surface">
+          Recent activity
+        </h3>
+        <span className="font-mono text-caption text-on-surface-muted tabular-nums">
           Total signs: <strong className="text-on-surface">{events.length}</strong>
         </span>
       </div>
 
       {recentEvents.length === 0 ? (
-        <p className="text-body-sm text-on-surface-muted py-2">
+        <p className="text-body-sm text-on-surface-muted px-4 py-6 text-center">
           No signs recorded yet in this session.
         </p>
       ) : (
         <ul
           aria-label="Recent activity log"
-          className="divide-y divide-border/60"
+          className="divide-y divide-border"
         >
           {recentEvents.map((evt) => {
             const durationSec = (evt.durationMs / 1000).toFixed(1);
             const meta = getEventDisplayMeta(evt.eventType);
-            const Icon = meta.icon;
             const timeString = formatEventTime(evt.startedAtIso);
 
             return (
               <li
                 key={evt.id}
-                className="py-2.5 flex items-center justify-between gap-3 text-body-sm"
+                className="px-4 py-2.5 flex items-center justify-between gap-3 text-body-sm"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Icon
-                    className={cn('w-4 h-4 shrink-0', meta.toneClass)}
-                    aria-hidden="true"
-                  />
-                  <span className={cn('font-medium truncate', meta.toneClass)}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Badge variant={meta.badgeVariant}>
                     {meta.label}
-                  </span>
+                  </Badge>
                 </div>
 
-                <div className="flex items-center gap-2 text-caption text-on-surface-muted shrink-0 tabular-nums">
+                <div className="flex items-center gap-2 font-mono text-caption text-on-surface-muted shrink-0 tabular-nums">
                   <span className="font-semibold text-on-surface">
                     {durationSec}s
                   </span>

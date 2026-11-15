@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 import React, { useRef, useEffect } from 'react';
-import { Camera, AlertCircle, RefreshCw } from 'lucide-react';
+import { CameraOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { type CameraStatus } from '@/lib/camera/use-camera';
 import { Button } from '@/components/ui/button';
 
@@ -76,13 +76,8 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
 
       {/* 2. Standby / Idle State */}
       {status === 'idle' && (
-        <div className="p-6 flex flex-col items-center justify-center text-on-surface-muted space-y-2">
-          <div className="w-12 h-12 rounded-full bg-surface border border-border flex items-center justify-center text-on-surface-muted">
-            <Camera className="w-6 h-6" aria-hidden="true" />
-          </div>
-          <span className="text-caption text-on-surface-muted">
-            Camera is off
-          </span>
+        <div className="p-6 flex flex-col items-center justify-center text-on-surface-muted/60 space-y-1">
+          <CameraOff className="w-8 h-8 text-on-surface-muted/60" aria-label="Camera is off" />
         </div>
       )}
 

@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { CameraPreview } from '../camera-preview';
 
 describe('CameraPreview Component', () => {
-  it('renders standby state when camera is idle', () => {
+  it('renders standby state with CameraOff icon when camera is idle', () => {
     render(
       <CameraPreview
         stream={null}
@@ -13,7 +13,7 @@ describe('CameraPreview Component', () => {
       />
     );
 
-    expect(screen.getByText('Camera is off')).toBeDefined();
+    expect(screen.getByLabelText('Camera is off')).toBeDefined();
   });
 
   it('renders loading state when camera is requesting permission', () => {

@@ -1,12 +1,17 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LogOut } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSessionState } from '@/lib/session/use-session-state';
 import { useCamera } from '@/lib/camera/use-camera';
 import { useFaceDetection } from '@/lib/detection/use-face-detection';
 import { useDetectionSettings } from '@/lib/settings/settings-store';
 import { useSupabaseAuth } from '@/lib/supabase/use-supabase-auth';
+import {
+  saveCompletedSession,
+  loadSavedSessions,
+  deleteSavedSession,
+  type SavedSessionSummary,
+} from '@/lib/session/session-storage';
 import {
   createInitialSessionEventEngineState,
   processSessionFrame,
@@ -19,12 +24,22 @@ import { CameraPreview } from '@/components/camera/camera-preview';
 import { FocusStage } from '@/components/session/focus-stage';
 import { EventFeed } from '@/components/session/event-feed';
 import { SettingsModal } from '@/components/session/settings-modal';
+import { SessionHistoryPanel } from '@/components/session/session-history-panel';
 import { StudentLoginView } from '@/components/auth/student-login-view';
+import { cn } from '@/lib/utils';
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [activeTab, setActiveTab] = useState<'focus' | 'history'>('focus');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [savedSessions, setSavedSessions] = useState<SavedSessionSummary[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [lastDeletedSessionId, setLastDeletedSessionId] = useState<
+    string | null
+  >(null);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+
+  const sessionStartIsoRef = useRef<string | null>(null);
   const sessionConsentIsoRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -33,9 +48,9 @@ export default function Home() {
       if (saved === 'true') {
         setIsGuestMode(true);
       }
-      const consented = window.sessionStorage?.getItem('study_tracker_consented_at');
-      if (consented) {
-        sessionConsentIsoRef.current = consented;
+      const savedConsent = window.sessionStorage?.getItem('study_tracker_consented_at');
+      if (savedConsent) {
+        sessionConsentIsoRef.current = savedConsent;
       }
     }
   }, []);
@@ -62,11 +77,32 @@ export default function Home() {
 
   const {
     status: authStatus,
+    userId: authUserId,
     email: authEmail,
     signInWithEmail,
     signUpWithEmail,
+    resetPasswordForEmail,
     signOut,
   } = useSupabaseAuth();
+
+  // Load saved sessions on mount and when auth user changes (Strict Tenant Isolation)
+  useEffect(() => {
+    let isMounted = true;
+    async function refreshSavedSessions() {
+      setIsLoadingHistory(true);
+      // Immediately clear current list so previous user's sessions don't linger
+      setSavedSessions([]);
+      const { sessions } = await loadSavedSessions({}, authUserId);
+      if (isMounted) {
+        setSavedSessions(sessions);
+        setIsLoadingHistory(false);
+      }
+    }
+    void refreshSavedSessions();
+    return () => {
+      isMounted = false;
+    };
+  }, [authStatus, authUserId, authEmail]);
 
   // Background Web Worker face detection pipeline (zero main-thread slowdown)
   const {
@@ -82,7 +118,7 @@ export default function Home() {
     isMonitoring,
   });
 
-  // Session event accumulator state (Feature F-09, F-10)
+  // Session event accumulator state (Feature F-09, F-10, F-11, F-12, F-13)
   const [engineState, setEngineState] = useState<SessionEventEngineState>(() =>
     createInitialSessionEventEngineState()
   );
@@ -124,49 +160,18 @@ export default function Home() {
     settings,
   ]);
 
-  const eventCounts = useMemo(() => ({
-    eyesClosed: engineState.events.filter((e) => e.eventType === 'eyes_closed').length,
-    longEyeClosure: 0,
-    headTurned: engineState.events.filter((e) => e.eventType === 'head_turned').length,
-    lookingAway: 0,
-    total: engineState.events.length,
-  }), [engineState.events]);
-
-  /**
-   * Fast 1-click start: if consent is already recorded, starts session immediately.
-   * If first time, prompts via ConsentModal.
-   */
-  const handleStartStudySession = useCallback(async () => {
-    let consentedAt = sessionConsentIsoRef.current;
-    if (!consentedAt && typeof window !== 'undefined') {
-      consentedAt = window.sessionStorage?.getItem('study_tracker_consented_at') || null;
-      if (consentedAt) {
-        sessionConsentIsoRef.current = consentedAt;
-      }
-    }
-
-    if (!consentedAt) {
-      requestStart();
-      return;
-    }
-
-    const mediaStream = await startCamera();
-    if (mediaStream) {
-      confirmConsent();
-      setEngineState(createInitialSessionEventEngineState());
-      lastProcessedTimestampRef.current = 0;
-    }
-  }, [confirmConsent, requestStart, startCamera]);
-
   /**
    * Called when user affirmatively gives consent in the ConsentModal.
+   * Records consent timestamp, saves to session storage for 1-click starts, and requests webcam.
    */
   const handleConsentAgreed = useCallback(async () => {
     const nowIso = new Date().toISOString();
     sessionConsentIsoRef.current = nowIso;
+    sessionStartIsoRef.current = nowIso;
     if (typeof window !== 'undefined') {
       window.sessionStorage?.setItem('study_tracker_consented_at', nowIso);
     }
+
     confirmConsent();
     setEngineState(createInitialSessionEventEngineState());
     lastProcessedTimestampRef.current = 0;
@@ -174,32 +179,97 @@ export default function Home() {
   }, [confirmConsent, startCamera]);
 
   /**
-   * Called when user stops monitoring.
-   * Releases camera hardware tracks immediately and stops timer.
+   * Fast 1-Click Start:
+   * If the student already consented at login/entry, start camera and session immediately.
+   * Otherwise, open ConsentModal once to record affirmative agreement.
    */
-  const handleStopSession = useCallback(() => {
+  const handleStartStudySession = useCallback(async () => {
+    if (!sessionConsentIsoRef.current) {
+      requestStart();
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    sessionStartIsoRef.current = nowIso;
+    confirmConsent();
+    setEngineState(createInitialSessionEventEngineState());
+    lastProcessedTimestampRef.current = 0;
+    await startCamera();
+  }, [confirmConsent, requestStart, startCamera]);
+
+  /**
+   * Called when user stops monitoring.
+   * Finalizes any active event, releases camera hardware tracks immediately, stops timer,
+   * persists the completed session, and resets the live event engine.
+   */
+  const handleStopSession = useCallback(async () => {
+    const endedAtIso = new Date().toISOString();
+    const startedAtIso = sessionStartIsoRef.current ?? endedAtIso;
+    const consentedAtIso = sessionConsentIsoRef.current ?? startedAtIso;
+
     const finalized = finalizeSessionEvents(
       engineStateRef.current,
       performance.now(),
-      new Date().toISOString()
+      endedAtIso
     );
-    engineStateRef.current = finalized;
+
+    // Reset live engine state so live feed resets upon session completion
+    const initialEngineState = createInitialSessionEventEngineState();
+    engineStateRef.current = initialEngineState;
     lastProcessedTimestampRef.current = 0;
-    setEngineState(finalized);
+    setEngineState(initialEngineState);
+
     stopCamera();
     stopSession();
-  }, [stopCamera, stopSession]);
+
+    const saveResult = await saveCompletedSession(
+      {
+        startedAt: startedAtIso,
+        endedAt: endedAtIso,
+        consentedAt: consentedAtIso,
+        settings,
+        events: finalized.events,
+      },
+      {},
+      authUserId
+    );
+
+    if (saveResult.success && saveResult.session) {
+      const saved = saveResult.session;
+      setSavedSessions((prev) => [
+        saved,
+        ...prev.filter((s) => s.id !== saved.id),
+      ]);
+    }
+  }, [authUserId, settings, stopCamera, stopSession]);
+
+  /**
+   * Deletes a saved session and its associated events from both Supabase and browser storage.
+   */
+  const handleDeleteSession = useCallback(
+    async (sessionId: string) => {
+      const res = await deleteSavedSession(sessionId, {}, authUserId);
+      if (res.success) {
+        setSavedSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        setLastDeletedSessionId(sessionId);
+      }
+    },
+    [authUserId]
+  );
 
   const handleSignOut = useCallback(async () => {
     if (isMonitoring) {
-      handleStopSession();
+      await handleStopSession();
     }
+    // CRITICAL: Immediately clear in-memory sessions so nothing leaks to the next user!
+    setSavedSessions([]);
     if (authEmail) {
       await signOut();
     }
     setIsGuestMode(false);
     if (typeof window !== 'undefined') {
       window.sessionStorage?.removeItem('study_tracker_guest_mode');
+      window.sessionStorage?.removeItem('study_tracker_consented_at');
     }
   }, [authEmail, isMonitoring, handleStopSession, signOut]);
 
@@ -209,6 +279,7 @@ export default function Home() {
         <StudentLoginView
           onSignIn={signInWithEmail}
           onSignUp={signUpWithEmail}
+          onForgotPassword={resetPasswordForEmail}
           onContinueAsGuest={() => {
             const nowIso = new Date().toISOString();
             sessionConsentIsoRef.current = nowIso;
@@ -237,7 +308,7 @@ export default function Home() {
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Student Account & Sign Out */}
-            <span className="hidden md:inline text-body-sm text-on-surface-muted truncate max-w-[200px]">
+            <span className="hidden md:inline font-mono text-caption text-on-surface-muted truncate max-w-[200px]">
               {authEmail || 'Guest'}
             </span>
             <Button
@@ -245,72 +316,143 @@ export default function Home() {
               variant="secondary"
               size="sm"
               onClick={() => void handleSignOut()}
-              className="gap-1.5 h-9"
+              className="min-h-[44px] px-3.5 rounded-md shadow-none text-caption font-medium"
             >
-              <LogOut className="w-4 h-4" aria-hidden="true" />
               <span>Sign out</span>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Workspace (Focus Room) */}
-      <div className="mx-auto max-w-[1120px] px-4 py-6 sm:px-6 sm:py-8 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Primary Column: Focus Stage (8 cols) */}
-          <div className="lg:col-span-8 space-y-6">
-            <FocusStage
-              isMonitoring={isMonitoring}
-              formattedElapsedTime={formattedElapsedTime}
-              faceDetected={faceDetected}
-              isEyesClosed={engineState.eyeClosure.isClosed}
-              isLongEyeClosure={false}
-              eyeClosureDurationMs={engineState.eyeClosure.continuousDurationMs}
-              isHeadTurned={engineState.headPose.isTurned}
-              isHeadTilted={engineState.headPose.isTilted}
-              isLookingAway={false}
-              headPoseDurationMs={engineState.headPose.continuousDurationMs}
-              lookingAwayDurationMs={3000}
-              eventCounts={eventCounts}
-              onStart={handleStartStudySession}
-              onStop={handleStopSession}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-            />
+      {/* Sub-Header Navigation Tabs: Zero decorative icons, sharp bottom border indicator */}
+      <div className="border-b border-border bg-surface">
+        <div
+          role="tablist"
+          aria-label="Study session sections"
+          className="mx-auto flex max-w-[1120px] items-center gap-1 px-4 sm:px-6"
+        >
+          <button
+            type="button"
+            id="tab-focus"
+            role="tab"
+            aria-selected={activeTab === 'focus'}
+            aria-controls="tabpanel-focus"
+            onClick={() => setActiveTab('focus')}
+            className={cn(
+              'inline-flex items-center gap-2 min-h-[44px] px-4 py-3 text-label font-semibold border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              activeTab === 'focus'
+                ? 'border-primary text-on-surface'
+                : 'border-transparent text-on-surface-muted hover:text-on-surface hover:border-border'
+            )}
+          >
+            <span>Focus Room</span>
+          </button>
 
-            {/* Event Feed Component */}
-            <EventFeed events={engineState.events} />
-          </div>
+          <button
+            type="button"
+            id="tab-history"
+            role="tab"
+            aria-selected={activeTab === 'history'}
+            aria-controls="tabpanel-history"
+            onClick={() => setActiveTab('history')}
+            className={cn(
+              'inline-flex items-center gap-2 min-h-[44px] px-4 py-3 text-label font-semibold border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              activeTab === 'history'
+                ? 'border-primary text-on-surface'
+                : 'border-transparent text-on-surface-muted hover:text-on-surface hover:border-border'
+            )}
+          >
+            <span>Past Sessions</span>
+            <span className="ml-1 rounded-sm border border-border-strong/50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-on-surface-muted tabular-nums">
+              {savedSessions.length}
+            </span>
+          </button>
+        </div>
+      </div>
 
-          {/* Right Peripheral Column: Camera Preview (4 cols) */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-body font-semibold text-on-surface">
-                  Camera preview
-                </h3>
-                {isMonitoring ? (
-                  <span className="inline-flex items-center gap-1.5 text-caption font-semibold text-danger">
-                    <span className="w-2 h-2 rounded-full bg-danger" aria-hidden="true" />
-                    <span>Monitoring</span>
-                  </span>
-                ) : (
-                  <span className="text-caption font-medium text-on-surface-muted">
-                    Off
-                  </span>
-                )}
+      {/* Main Single Centered Column (max 1120px) */}
+      <div className="mx-auto max-w-[1120px] p-4 sm:p-6 space-y-6">
+        {/* Tab 1: Focus Room */}
+        <div
+          role="tabpanel"
+          id="tabpanel-focus"
+          aria-labelledby="tab-focus"
+          className={activeTab === 'focus' ? 'block calm-fade-in' : 'hidden'}
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left/Center Column (7 cols): The Hero Focus Stage */}
+            <div className="lg:col-span-7 space-y-4">
+              <FocusStage
+                isMonitoring={isMonitoring}
+                formattedElapsedTime={formattedElapsedTime}
+                faceDetected={faceDetected}
+                isEyesClosed={engineState.eyeClosure.isClosed}
+                isLongEyeClosure={engineState.eyeClosure.isLongClosure}
+                eyeClosureDurationMs={engineState.eyeClosure.continuousDurationMs}
+                isHeadTurned={engineState.headPose.isTurned}
+                isHeadTilted={engineState.headPose.isTilted}
+                isLookingAway={engineState.headPose.isLookingAway}
+                headPoseDurationMs={engineState.headPose.continuousDurationMs}
+                lookingAwayDurationMs={engineState.headPose.yawTurnDurationMs}
+                eventCounts={engineState.counts}
+                onStart={() => void handleStartStudySession()}
+                onStop={() => void handleStopSession()}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+              />
+            </div>
+
+            {/* Right Column (5 cols): Compact Peripheral Camera with 6px Semantic Status Dot */}
+            <div className="lg:col-span-5 space-y-5">
+              <div className="rounded-md border border-border bg-surface shadow-none divide-y divide-border">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <h3 className="text-body-sm font-semibold tracking-tight text-on-surface">
+                    Camera preview
+                  </h3>
+                  {isMonitoring ? (
+                    <span className="inline-flex items-center gap-2 text-caption font-medium text-on-surface select-none">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" aria-hidden="true" />
+                      <span>On · Stays in browser</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 text-caption font-medium text-on-surface-muted select-none">
+                      <span className="h-1.5 w-1.5 rounded-full bg-on-surface-muted/60 shrink-0" aria-hidden="true" />
+                      <span>Camera off</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4">
+                  <CameraPreview
+                    videoRef={videoRef}
+                    stream={stream}
+                    status={cameraStatus}
+                    errorMessage={cameraErrorMessage}
+                    onRetry={startCamera}
+                  />
+                </div>
               </div>
 
-              <div className="overflow-hidden rounded-xl border border-border bg-background aspect-video">
-                <CameraPreview
-                  stream={stream}
-                  status={cameraStatus}
-                  videoRef={videoRef}
-                  errorMessage={cameraErrorMessage}
-                  onRetry={handleStartStudySession}
-                />
-              </div>
+              {/* Active Session Event Feed */}
+              {isMonitoring && (
+                <EventFeed events={engineState.events} />
+              )}
             </div>
           </div>
+        </div>
+
+        {/* Tab 2: Past Sessions View: Dedicated Session History */}
+        <div
+          role="tabpanel"
+          id="tabpanel-history"
+          aria-labelledby="tab-history"
+          className={activeTab === 'history' ? 'block calm-fade-in' : 'hidden'}
+        >
+          <SessionHistoryPanel
+            sessions={savedSessions}
+            isLoading={isLoadingHistory}
+            onDeleteSession={handleDeleteSession}
+            lastDeletedSessionId={lastDeletedSessionId}
+          />
         </div>
       </div>
 

@@ -19,6 +19,9 @@ export interface UseSupabaseAuthReturn {
     email: string,
     password: string
   ) => Promise<{ success: boolean; error?: string }>;
+  resetPasswordForEmail: (
+    email: string
+  ) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -187,6 +190,45 @@ export function useSupabaseAuth(): UseSupabaseAuthReturn {
     [applyUser]
   );
 
+  const resetPasswordForEmail = useCallback(
+    async (
+      inputEmail: string
+    ): Promise<{ success: boolean; error?: string }> => {
+      const trimmedEmail = inputEmail.trim();
+      if (!trimmedEmail) {
+        return {
+          success: false,
+          error: 'Please enter your email address to reset your password.',
+        };
+      }
+
+      try {
+        const supabase = createClient();
+        const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+          redirectTo:
+            typeof window !== 'undefined'
+              ? `${window.location.origin}/auth/callback?type=recovery`
+              : undefined,
+        });
+
+        if (error) {
+          setErrorMessage(error.message);
+          return { success: false, error: error.message };
+        }
+
+        return { success: true };
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Unable to send password reset email right now.';
+        setErrorMessage(msg);
+        return { success: false, error: msg };
+      }
+    },
+    []
+  );
+
   const signOut = useCallback(async () => {
     try {
       const supabase = createClient();
@@ -205,6 +247,7 @@ export function useSupabaseAuth(): UseSupabaseAuthReturn {
     errorMessage,
     signInWithEmail,
     signUpWithEmail,
+    resetPasswordForEmail,
     signOut,
   };
 }

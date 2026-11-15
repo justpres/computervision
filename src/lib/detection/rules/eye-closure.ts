@@ -18,10 +18,12 @@ export interface EyeClosureState {
   continuousDurationMs: number;
   /** True once continuousDurationMs reaches or exceeds durationThresholdMs (default 1000ms) */
   isEventActive: boolean;
+  /** True once continuousDurationMs reaches or exceeds longDurationThresholdMs (default 2000ms) */
+  isLongClosure: boolean;
 }
 
 export interface CompletedEyeClosureEvent {
-  eventType: 'eyes_closed';
+  eventType: 'eyes_closed' | 'long_eye_closure';
   startedAtMs: number;
   endedAtMs: number;
   durationMs: number;
@@ -34,6 +36,7 @@ export interface EyeClosureFrameInput {
   timestampMs: number;
   scoreThreshold?: number;
   durationThresholdMs?: number;
+  longDurationThresholdMs?: number;
 }
 
 export interface EyeClosureEvaluation {
@@ -56,6 +59,7 @@ export function createInitialEyeClosureState(): EyeClosureState {
     closedSinceMs: null,
     continuousDurationMs: 0,
     isEventActive: false,
+    isLongClosure: false,
   };
 }
 
@@ -116,6 +120,14 @@ export function evaluateEyeClosure(
     input.scoreThreshold ?? DETECTION_DEFAULTS.eyeClosedScoreThreshold;
   const durationThresholdMs =
     input.durationThresholdMs ?? DETECTION_DEFAULTS.eyeClosedDurationMs;
+  const rawLongThresholdMs =
+    input.longDurationThresholdMs ?? DETECTION_DEFAULTS.longEyeClosureDurationMs;
+  const longDurationThresholdMs = Math.max(
+    durationThresholdMs,
+    Number.isFinite(rawLongThresholdMs)
+      ? rawLongThresholdMs
+      : DETECTION_DEFAULTS.longEyeClosureDurationMs
+  );
   const safeTimestampMs = Number.isFinite(input.timestampMs)
     ? input.timestampMs
     : (prevState.closedSinceMs ?? 0);
@@ -128,8 +140,10 @@ export function evaluateEyeClosure(
         prevState.continuousDurationMs,
         Math.round(endedAtMs - prevState.closedSinceMs)
       );
+      const isLongClosure =
+        prevState.isLongClosure || durationMs >= longDurationThresholdMs;
       completedEvent = {
-        eventType: 'eyes_closed',
+        eventType: isLongClosure ? 'long_eye_closure' : 'eyes_closed',
         startedAtMs: prevState.closedSinceMs,
         endedAtMs,
         durationMs,
@@ -161,6 +175,7 @@ export function evaluateEyeClosure(
       Math.round(safeTimestampMs - closedSinceMs)
     );
     const isEventActive = continuousDurationMs >= durationThresholdMs;
+    const isLongClosure = continuousDurationMs >= longDurationThresholdMs;
     const justTriggered = isEventActive && !prevState.isEventActive;
 
     return {
@@ -170,6 +185,7 @@ export function evaluateEyeClosure(
         closedSinceMs,
         continuousDurationMs,
         isEventActive,
+        isLongClosure,
       },
       justTriggered,
       completedEvent: null,
@@ -184,8 +200,10 @@ export function evaluateEyeClosure(
       prevState.continuousDurationMs,
       Math.round(endedAtMs - prevState.closedSinceMs)
     );
+    const isLongClosure =
+      prevState.isLongClosure || durationMs >= longDurationThresholdMs;
     completedEvent = {
-      eventType: 'eyes_closed',
+      eventType: isLongClosure ? 'long_eye_closure' : 'eyes_closed',
       startedAtMs: prevState.closedSinceMs,
       endedAtMs,
       durationMs,

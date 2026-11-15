@@ -90,3 +90,46 @@ export const SessionRecordSchema = z.object({
 });
 
 export type SessionRecord = z.infer<typeof SessionRecordSchema>;
+
+/**
+ * Schema for an individual event submitted when saving a completed session.
+ * Strict validation ensures zero facial landmark, video, or image data can be passed.
+ */
+export const SaveSessionEventInputSchema = z
+  .object({
+    id: z.string().min(1).max(128).optional(),
+    event_type: EventTypeSchema,
+    started_at: z.string().datetime(),
+    duration_ms: z.number().int().min(0).max(86_400_000),
+  })
+  .strict();
+
+export type SaveSessionEventInput = z.infer<typeof SaveSessionEventInputSchema>;
+
+/**
+ * Schema for saving a completed study session and its events via Server Action.
+ */
+export const SaveSessionPayloadSchema = z
+  .object({
+    id: z.string().uuid(),
+    started_at: z.string().datetime(),
+    ended_at: z.string().datetime(),
+    consented_at: z.string().datetime(),
+    settings: SessionSettingsSchema,
+    events: z.array(SaveSessionEventInputSchema).max(5000),
+  })
+  .strict();
+
+export type SaveSessionPayload = z.infer<typeof SaveSessionPayloadSchema>;
+
+/**
+ * Schema for deleting a saved study session by UUID.
+ */
+export const DeleteSessionPayloadSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+  })
+  .strict();
+
+export type DeleteSessionPayload = z.infer<typeof DeleteSessionPayloadSchema>;
+

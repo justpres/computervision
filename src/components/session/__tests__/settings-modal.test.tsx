@@ -88,6 +88,18 @@ describe('SettingsModal Component', () => {
       headTurnYawAngleDegrees: 35,
     });
 
+    const longEyeSlider = screen.getByLabelText('Long eye closure duration');
+    fireEvent.change(longEyeSlider, { target: { value: '2500' } });
+    expect(onUpdateSettings).toHaveBeenCalledWith({
+      longEyeClosureDurationMs: 2500,
+    });
+
+    const lookingAwaySlider = screen.getByLabelText('Looking-away duration');
+    fireEvent.change(lookingAwaySlider, { target: { value: '3500' } });
+    expect(onUpdateSettings).toHaveBeenCalledWith({
+      lookingAwayDurationMs: 3500,
+    });
+
     const resetBtn = screen.getByText('Reset to defaults');
     fireEvent.click(resetBtn);
     expect(onResetSettings).toHaveBeenCalledTimes(1);

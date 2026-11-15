@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { Sliders, Eye, EyeOff, Compass, RotateCcw } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
@@ -26,14 +26,11 @@ export interface SettingsModalProps {
 }
 
 /**
- * Adjustable detection settings modal with live calibration feedback.
- *
- * - Wide 2-column layout that fits standard laptop viewports without scrolling.
- * - Backdrop blur for elegant depth.
+ * Adjustable detection settings & calibration inspector (Pattern B: Right-Hand Slide-Over Drawer):
+ * - Zero decorative icons (only functional X close button).
+ * - Zero nested cards: exposed hairline dividers (`divide-y divide-border`) inside a single slide-over drawer.
  * - Neutral wording only ("Eyes closed", "Eyes open", "Head turned", "Head centered").
  * - Validates and constrains sliders to SAFE_SETTINGS_BOUNDS.
- * - Live calibration meters let the student blink or turn their head and immediately
- *   see how their movement compares against the configured threshold.
  */
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -97,7 +94,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 backdrop-blur-md p-3 sm:p-4 overflow-y-auto transition-all animate-in fade-in"
+      className="fixed inset-0 z-50 flex justify-end bg-on-surface/40 backdrop-blur-sm calm-fade-in"
       role="presentation"
       onClick={onClose}
     >
@@ -106,73 +103,71 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         aria-modal="true"
         aria-labelledby="settings-modal-title"
         aria-describedby="settings-modal-description"
-        className="w-full max-w-4xl max-h-[94vh] flex flex-col rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-2xl space-y-3 sm:space-y-3.5 my-auto select-none"
+        className="w-full max-w-lg h-full flex flex-col border-l border-border bg-surface shadow-xl divide-y divide-border select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
-            <h2 id="settings-modal-title" className="text-h3 font-semibold text-on-surface">
+        {/* Top Inspector Header */}
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <h2 id="settings-modal-title" className="text-body-sm font-semibold tracking-tight text-on-surface truncate">
               Detection Settings &amp; Calibration
             </h2>
+            <Badge
+              variant="experimental"
+              tabIndex={0}
+              title="Experimental: Thresholds are developer starting defaults not yet calibrated across lighting conditions."
+              aria-label="Experimental: Thresholds are developer starting defaults not yet calibrated across lighting conditions"
+              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 shrink-0"
+            >
+              Experimental
+            </Badge>
           </div>
-          <Badge
-            variant="experimental"
-            tabIndex={0}
-            title="Experimental: Thresholds are developer starting defaults not yet calibrated across lighting conditions."
-            aria-label="Experimental: Thresholds are developer starting defaults not yet calibrated across lighting conditions"
-            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shrink-0"
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close settings inspector"
+            className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] -mr-2 rounded-md text-on-surface-muted hover:text-on-surface hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            Experimental
-          </Badge>
+            <X className="w-4 h-4" aria-hidden="true" />
+          </button>
         </div>
 
-        {/* 2-Column Wide Grid for Sliders */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto max-h-[calc(94vh-100px)] py-0.5">
-          {/* Column 1: Eye Closure Threshold & Duration */}
-          <div className="rounded-xl border border-border bg-background p-3 space-y-2">
+        {/* Scrollable Hairline-Divided Inspector Body (Zero Nested Cards) */}
+        <div className="flex-1 overflow-y-auto divide-y divide-border">
+          {/* Section 1: Eye Closure Sensitivity */}
+          <div className="p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <Eye className="w-4 h-4 text-event-eyes shrink-0" aria-hidden="true" />
-                <h3 className="text-body font-semibold text-on-surface whitespace-nowrap">
-                  Eye Closure Sensitivity
-                </h3>
-              </div>
+              <h3 className="text-body-sm font-semibold tracking-tight text-on-surface">
+                Eye Closure Sensitivity
+              </h3>
               {isMonitoring && faceDetected ? (
-                <Badge
-                  variant={isEyeAboveThreshold ? 'event-eyes' : 'neutral'}
-                  className="tabular-nums text-caption py-0"
-                >
-                  {isEyeAboveThreshold ? (
-                    <>
-                      <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />
-                      <span>Eyes closed</span>
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-3.5 h-3.5" aria-hidden="true" />
-                      <span>Eyes open</span>
-                    </>
-                  )}
-                </Badge>
+                <span className="inline-flex items-center gap-2 text-caption font-mono text-on-surface tabular-nums">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                      isEyeAboveThreshold ? 'bg-event-eyes' : 'bg-success'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span>{isEyeAboveThreshold ? 'Eyes closed' : 'Eyes open'}</span>
+                </span>
               ) : isMonitoring ? (
-                <Badge variant="neutral" className="text-caption py-0">
-                  Looking for face
-                </Badge>
+                <span className="inline-flex items-center gap-2 text-caption font-mono text-on-surface-muted">
+                  <span className="h-1.5 w-1.5 rounded-full bg-caution shrink-0" aria-hidden="true" />
+                  <span>Looking for face</span>
+                </span>
               ) : null}
             </div>
 
             {/* Threshold Slider */}
-            <div className="space-y-0.5">
-              <div className="flex items-center justify-between text-body-sm">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-caption">
                 <label
                   htmlFor="eye-threshold-slider"
-                  className="text-label text-on-surface text-caption sm:text-body-sm"
+                  className="font-medium text-on-surface"
                 >
-                  Eye closure threshold
+                  Eye closure sensitivity
                 </label>
-                <span className="tabular-nums font-semibold text-primary text-caption sm:text-body-sm">
+                <span className="font-mono font-semibold text-on-surface tabular-nums">
                   {settings.eyeClosedScoreThreshold.toFixed(2)} ({thresholdPercent}%)
                 </span>
               </div>
@@ -187,21 +182,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onUpdateSettings({ eyeClosedScoreThreshold: val })
                 }
               />
-              <div className="flex justify-between text-[11px] text-on-surface-muted tabular-nums">
+              <div className="flex justify-between font-mono text-[11px] text-on-surface-muted tabular-nums">
                 <span>0.10 (More sensitive)</span>
                 <span>Default: {DEFAULT_SESSION_SETTINGS.eyeClosedScoreThreshold.toFixed(2)}</span>
                 <span>0.90 (Less sensitive)</span>
               </div>
             </div>
 
-            {/* Live Eye Calibration Meter */}
-            <div className="space-y-0.5 pt-0.5">
-              <div className="flex items-center justify-between text-[11px] text-on-surface-muted tabular-nums">
-                <span>Live blink level</span>
+            {/* Live Eye Calibration Meter (4px linear bar per 8.4 Tufte) */}
+            <div className="space-y-1 pt-1">
+              <div className="flex items-center justify-between font-mono text-[11px] text-on-surface-muted tabular-nums">
+                <span>Current eye closure</span>
                 <span className="font-semibold text-on-surface">{blinkPercent}%</span>
               </div>
               <div
-                className="relative h-2 w-full rounded-full bg-surface border border-border-strong overflow-hidden"
+                className="relative h-1.5 w-full rounded-sm bg-background border border-border-strong overflow-hidden"
                 aria-label={`Live blink level ${blinkPercent} percent`}
               >
                 <div
@@ -217,15 +212,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             {/* Minimum Continuous Closure Duration Slider */}
-            <div className="space-y-0.5 pt-1 border-t border-border">
-              <div className="flex items-center justify-between text-body-sm">
+            <div className="space-y-1 pt-3 border-t border-border">
+              <div className="flex items-center justify-between text-caption">
                 <label
                   htmlFor="eye-duration-slider"
-                  className="text-label text-on-surface text-caption sm:text-body-sm"
+                  className="font-medium text-on-surface"
                 >
                   Minimum closure duration
                 </label>
-                <span className="tabular-nums font-semibold text-primary text-caption sm:text-body-sm">
+                <span className="font-mono font-semibold text-on-surface tabular-nums">
                   {(settings.eyeClosedDurationMs / 1000).toFixed(1)} s ({settings.eyeClosedDurationMs} ms)
                 </span>
               </div>
@@ -239,49 +234,90 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onValueChange={(val) =>
                   onUpdateSettings({
                     eyeClosedDurationMs: val,
+                    longEyeClosureDurationMs: Math.max(
+                      settings.longEyeClosureDurationMs,
+                      val
+                    ),
                   })
                 }
               />
-              <p className="text-[11px] text-on-surface-muted">
+              <p className="text-[11px] text-on-surface-muted tabular-nums">
                 Normal blinks under {(settings.eyeClosedDurationMs / 1000).toFixed(1)}s are ignored.
+              </p>
+            </div>
+
+            {/* Long Eye Closure Duration Slider */}
+            <div className="space-y-1 pt-3 border-t border-border">
+              <div className="flex items-center justify-between text-caption">
+                <label
+                  htmlFor="long-eye-duration-slider"
+                  className="font-medium text-on-surface"
+                >
+                  Long eye closure duration
+                </label>
+                <span className="font-mono font-semibold text-on-surface tabular-nums">
+                  {(settings.longEyeClosureDurationMs / 1000).toFixed(1)} s ({settings.longEyeClosureDurationMs} ms)
+                </span>
+              </div>
+              <Slider
+                id="long-eye-duration-slider"
+                aria-label="Long eye closure duration"
+                min={Math.max(
+                  SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.min,
+                  settings.eyeClosedDurationMs
+                )}
+                max={SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.max}
+                step={SAFE_SETTINGS_BOUNDS.longEyeClosureDurationMs.step}
+                value={settings.longEyeClosureDurationMs}
+                onValueChange={(val) =>
+                  onUpdateSettings({
+                    longEyeClosureDurationMs: Math.max(
+                      settings.eyeClosedDurationMs,
+                      val
+                    ),
+                  })
+                }
+              />
+              <p className="text-[11px] text-on-surface-muted tabular-nums">
+                Eye closures reaching {(settings.longEyeClosureDurationMs / 1000).toFixed(1)}s are recorded as long closures.
               </p>
             </div>
           </div>
 
-          {/* Column 2: Head Direction Thresholds */}
-          <div className="rounded-xl border border-border bg-background p-3 space-y-2">
+          {/* Section 2: Head Direction Thresholds */}
+          <div className="p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <Compass className="w-4 h-4 text-event-head shrink-0" aria-hidden="true" />
-                <h3 className="text-body font-semibold text-on-surface whitespace-nowrap">
-                  Head Direction Angles
-                </h3>
-              </div>
+              <h3 className="text-body-sm font-semibold tracking-tight text-on-surface">
+                Head Direction Angles
+              </h3>
               {isMonitoring && faceDetected ? (
-                <Badge
-                  variant={isHeadDeviatedNow ? 'event-head' : 'neutral'}
-                  className="tabular-nums text-caption py-0"
-                >
-                  <Compass className="w-3.5 h-3.5" aria-hidden="true" />
+                <span className="inline-flex items-center gap-2 text-caption font-mono text-on-surface tabular-nums">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                      isHeadDeviatedNow ? 'bg-event-head' : 'bg-success'
+                    }`}
+                    aria-hidden="true"
+                  />
                   <span>{isHeadDeviatedNow ? 'Head turned' : 'Head centered'}</span>
-                </Badge>
+                </span>
               ) : isMonitoring ? (
-                <Badge variant="neutral" className="text-caption py-0">
-                  Looking for face
-                </Badge>
+                <span className="inline-flex items-center gap-2 text-caption font-mono text-on-surface-muted">
+                  <span className="h-1.5 w-1.5 rounded-full bg-caution shrink-0" aria-hidden="true" />
+                  <span>Looking for face</span>
+                </span>
               ) : null}
             </div>
 
             {/* Head Turn Yaw Angle Slider */}
-            <div className="space-y-0.5">
-              <div className="flex items-center justify-between text-body-sm">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-caption">
                 <label
                   htmlFor="head-yaw-slider"
-                  className="text-label text-on-surface text-caption sm:text-body-sm"
+                  className="font-medium text-on-surface"
                 >
-                  Head turn angle (left / right yaw)
+                  Head turn angle (left or right)
                 </label>
-                <span className="tabular-nums font-semibold text-primary text-caption sm:text-body-sm">
+                <span className="font-mono font-semibold text-on-surface tabular-nums">
                   {settings.headTurnYawAngleDegrees}°
                 </span>
               </div>
@@ -296,31 +332,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onUpdateSettings({ headTurnYawAngleDegrees: val })
                 }
               />
-              <div className="flex justify-between text-[11px] text-on-surface-muted tabular-nums">
-                <span>15° (Strict)</span>
+              <div className="flex justify-between font-mono text-[11px] text-on-surface-muted tabular-nums">
+                <span>15° (Small turn)</span>
                 <span>Default: {DEFAULT_SESSION_SETTINGS.headTurnYawAngleDegrees}°</span>
-                <span>50° (Wide)</span>
+                <span>50° (Wide turn)</span>
               </div>
             </div>
 
             {/* Live Yaw Angle Needle Meter */}
-            <div className="space-y-0.5 pt-0.5">
-              <div className="flex items-center justify-between text-[11px] text-on-surface-muted tabular-nums">
-                <span>Live yaw angle needle (-60° to +60°)</span>
+            <div className="space-y-1 pt-1">
+              <div className="flex items-center justify-between font-mono text-[11px] text-on-surface-muted tabular-nums">
+                <span>Current left / right turn (-60° to +60°)</span>
                 <span className="font-semibold text-on-surface">
                   {Math.round(currentYawDegrees ?? 0)}°
                 </span>
               </div>
               <div
-                className="relative h-2 w-full rounded-full bg-surface border border-border-strong overflow-hidden"
+                className="relative h-1.5 w-full rounded-sm bg-background border border-border-strong overflow-hidden"
                 aria-label={`Live yaw angle ${Math.round(currentYawDegrees ?? 0)} degrees`}
               >
-                {/* Center 0° guide */}
                 <div
                   className="absolute top-0 bottom-0 left-1/2 w-px bg-border-strong"
                   title="Center (0°)"
                 />
-                {/* Left and right yaw threshold markers */}
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-on-surface"
                   style={{ left: `${yawLeftBoundPercent}%` }}
@@ -331,25 +365,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   style={{ left: `${yawRightBoundPercent}%` }}
                   title={`Right threshold: +${settings.headTurnYawAngleDegrees}°`}
                 />
-                {/* Live yaw needle */}
                 <div
-                  className="absolute top-0 bottom-0 w-2 -ml-1 rounded-full bg-event-head transition-all duration-150 motion-reduce:transition-none"
+                  className="absolute top-0 bottom-0 w-2 -ml-1 rounded-sm bg-event-head transition-all duration-150 motion-reduce:transition-none"
                   style={{ left: `${yawNeedlePercent}%` }}
-                  title={`Current yaw: ${Math.round(currentYawDegrees ?? 0)}°`}
+                  title={`Current turn: ${Math.round(currentYawDegrees ?? 0)}°`}
                 />
               </div>
             </div>
 
             {/* Head Tilt Pitch Angle Slider */}
-            <div className="space-y-0.5 pt-1 border-t border-border">
-              <div className="flex items-center justify-between text-body-sm">
+            <div className="space-y-1 pt-3 border-t border-border">
+              <div className="flex items-center justify-between text-caption">
                 <label
                   htmlFor="head-pitch-slider"
-                  className="text-label text-on-surface text-caption sm:text-body-sm"
+                  className="font-medium text-on-surface"
                 >
-                  Head tilt angle (up / down pitch)
+                  Head tilt angle (up or down)
                 </label>
-                <span className="tabular-nums font-semibold text-primary text-caption sm:text-body-sm">
+                <span className="font-mono font-semibold text-on-surface tabular-nums">
                   {settings.headTiltPitchAngleDegrees}°
                 </span>
               </div>
@@ -364,28 +397,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onUpdateSettings({ headTiltPitchAngleDegrees: val })
                 }
               />
-              <div className="flex justify-between text-[11px] text-on-surface-muted tabular-nums">
+              <div className="flex justify-between font-mono text-[11px] text-on-surface-muted tabular-nums">
                 <span>
-                  Live yaw: <strong className="text-on-surface">{Math.round(currentYawDegrees ?? 0)}°</strong>
+                  Left / right: <strong className="text-on-surface">{Math.round(currentYawDegrees ?? 0)}°</strong>
                 </span>
                 <span>Default: {DEFAULT_SESSION_SETTINGS.headTiltPitchAngleDegrees}°</span>
                 <span>
-                  Live pitch: <strong className="text-on-surface">{Math.round(currentPitchDegrees ?? 0)}°</strong>
+                  Up / down: <strong className="text-on-surface">{Math.round(currentPitchDegrees ?? 0)}°</strong>
                 </span>
               </div>
+            </div>
+
+            {/* Looking-Away Duration Slider */}
+            <div className="space-y-1 pt-3 border-t border-border">
+              <div className="flex items-center justify-between text-caption">
+                <label
+                  htmlFor="looking-away-duration-slider"
+                  className="font-medium text-on-surface"
+                >
+                  Looking-away duration
+                </label>
+                <span className="font-mono font-semibold text-on-surface tabular-nums">
+                  {(settings.lookingAwayDurationMs / 1000).toFixed(1)} s ({settings.lookingAwayDurationMs} ms)
+                </span>
+              </div>
+              <Slider
+                id="looking-away-duration-slider"
+                aria-label="Looking-away duration"
+                min={SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.min}
+                max={SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.max}
+                step={SAFE_SETTINGS_BOUNDS.lookingAwayDurationMs.step}
+                value={settings.lookingAwayDurationMs}
+                onValueChange={(val) =>
+                  onUpdateSettings({ lookingAwayDurationMs: val })
+                }
+              />
+              <p className="text-[11px] text-on-surface-muted tabular-nums">
+                Head turns held for {(settings.lookingAwayDurationMs / 1000).toFixed(1)}s are recorded as looking away.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Footer Actions: Reset to Defaults (secondary) & Done (primary) */}
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1.5 shrink-0 border-t border-border/60">
+        {/* Footer Actions: Reset to Defaults (secondary) & Done (1 primary CTA) */}
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-background/40 shrink-0">
           <Button
             type="button"
             variant="secondary"
+            size="sm"
             onClick={onResetSettings}
-            className="gap-2 h-9 text-body-sm px-3"
+            className="min-h-[44px] px-4 rounded-md shadow-none text-caption font-medium"
           >
-            <RotateCcw className="w-4 h-4" aria-hidden="true" />
             <span>Reset to defaults</span>
           </Button>
 
@@ -393,8 +455,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             ref={doneButtonRef}
             type="button"
             variant="primary"
+            size="sm"
             onClick={onClose}
-            className="h-9 px-6 text-body-sm font-semibold"
+            className="min-h-[44px] px-6 rounded-md shadow-none text-caption font-semibold"
           >
             Done
           </Button>

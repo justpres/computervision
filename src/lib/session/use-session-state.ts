@@ -66,17 +66,12 @@ export function useSessionState(): UseSessionStateReturn {
 
   /**
    * Request to start a session.
-   * If consent has not been provided yet, prompts for consent first.
+   * Always prompts for explicit consent before every session.
    */
   const requestStart = useCallback(() => {
     if (status === 'active') return;
-
-    if (!consentedAt) {
-      setStatus('consent_pending');
-    } else {
-      setStatus('active');
-    }
-  }, [status, consentedAt]);
+    setStatus('consent_pending');
+  }, [status]);
 
   /**
    * User affirmatively consents to monitoring.

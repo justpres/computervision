@@ -42,4 +42,32 @@ describe('EventFeed Component', () => {
     expect(screen.getByText('2.5s')).toBeDefined();
     expect(screen.getByText('2')).toBeDefined();
   });
+
+  it('renders neutral "Long eye closure" and "Looking away" events', () => {
+    const events: SessionDetectionEvent[] = [
+      {
+        id: 'evt-3',
+        eventType: 'long_eye_closure',
+        startedAtMs: 1000,
+        endedAtMs: 3400,
+        durationMs: 2400,
+        startedAtIso: '2026-10-20T10:00:01.000Z',
+      },
+      {
+        id: 'evt-4',
+        eventType: 'looking_away',
+        startedAtMs: 5000,
+        endedAtMs: 8500,
+        durationMs: 3500,
+        startedAtIso: '2026-10-20T10:00:05.000Z',
+      },
+    ];
+
+    render(<EventFeed events={events} />);
+
+    expect(screen.getByText('Long eye closure')).toBeDefined();
+    expect(screen.getByText('2.4s')).toBeDefined();
+    expect(screen.getByText('Looking away')).toBeDefined();
+    expect(screen.getByText('3.5s')).toBeDefined();
+  });
 });

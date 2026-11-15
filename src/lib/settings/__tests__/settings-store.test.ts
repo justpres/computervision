@@ -103,4 +103,32 @@ describe('Detection Settings Store', () => {
     expect(reset).toEqual(DEFAULT_SESSION_SETTINGS);
     expect(window.localStorage.getItem(SETTINGS_STORAGE_KEY)).toBeNull();
   });
+
+  it('enforces longEyeClosureDurationMs >= eyeClosedDurationMs and validates lookingAwayDurationMs bounds', () => {
+    const sanitized = sanitizeSessionSettings({
+      eyeClosedDurationMs: 2500,
+      longEyeClosureDurationMs: 1800, // below eyeClosedDurationMs -> bumped to 2500
+      lookingAwayDurationMs: 900, // below 1500 min -> clamped to 1500
+    });
+    expect(sanitized.eyeClosedDurationMs).toBe(2500);
+    expect(sanitized.longEyeClosureDurationMs).toBe(2500);
+    expect(sanitized.lookingAwayDurationMs).toBe(1500);
+
+    const invalidLongEye = validateSettingsUpdate(DEFAULT_SESSION_SETTINGS, {
+      eyeClosedDurationMs: 2200,
+      longEyeClosureDurationMs: 1800,
+    });
+    expect(invalidLongEye.success).toBe(false);
+
+    const invalidLookingAway = validateSettingsUpdate(DEFAULT_SESSION_SETTINGS, {
+      lookingAwayDurationMs: 1200,
+    });
+    expect(invalidLookingAway.success).toBe(false);
+
+    const validM2 = validateSettingsUpdate(DEFAULT_SESSION_SETTINGS, {
+      longEyeClosureDurationMs: 2500,
+      lookingAwayDurationMs: 3500,
+    });
+    expect(validM2.success).toBe(true);
+  });
 });

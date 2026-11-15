@@ -4,8 +4,15 @@ import { render, screen } from '@testing-library/react';
 import { MonitoringIndicator } from '../monitoring-indicator';
 
 describe('MonitoringIndicator Component', () => {
-  it('renders "Monitoring is off" when inactive with no duplicate icons', () => {
+  it('returns null when inactive by default to keep header uncluttered', () => {
     const { container } = render(<MonitoringIndicator isMonitoring={false} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders "Monitoring is off" when inactive if showWhenIdle is explicitly enabled', () => {
+    const { container } = render(
+      <MonitoringIndicator isMonitoring={false} showWhenIdle={true} />
+    );
 
     expect(screen.getByText('Monitoring is off')).toBeDefined();
     expect(container.querySelector('svg')).toBeNull();

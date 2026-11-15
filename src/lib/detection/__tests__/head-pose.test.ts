@@ -170,5 +170,111 @@ describe('Head Direction Rule', () => {
       });
       expect(evalCustom.state.isTurned).toBe(true);
     });
+
+    it('ignores quick glances under 1000ms without emitting an event', () => {
+      let state = createInitialHeadPoseState();
+      const turnedMatrix = buildRotationMatrix4x4(35, 0, 0);
+      const centeredMatrix = buildRotationMatrix4x4(0, 0, 0);
+
+      state = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: turnedMatrix,
+        timestampMs: 1000,
+      }).state;
+      expect(state.isTurned).toBe(true);
+      expect(state.isEventActive).toBe(false);
+
+      // 650ms later, head centers -> no event emitted
+      const centered = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: centeredMatrix,
+        timestampMs: 1650,
+      });
+      expect(centered.state.isTurned).toBe(false);
+      expect(centered.completedEvent).toBeNull();
+    });
+
+    it('triggers looking_away when horizontal yaw turn persists >= lookingAwayDurationMs (3000ms)', () => {
+      let state = createInitialHeadPoseState();
+      const turnedMatrix = buildRotationMatrix4x4(-36, 4, 0);
+      const centeredMatrix = buildRotationMatrix4x4(0, 0, 0);
+
+      // t = 1000ms: head turns left (-36°)
+      state = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: turnedMatrix,
+        timestampMs: 1000,
+      }).state;
+      expect(state.isTurned).toBe(true);
+      expect(state.yawTurnStartTimeMs).toBe(1000);
+      expect(state.isLookingAway).toBe(false);
+
+      // t = 3000ms: 2000ms elapsed -> head_turned active, not yet looking_away
+      state = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: turnedMatrix,
+        timestampMs: 3000,
+      }).state;
+      expect(state.isEventActive).toBe(true);
+      expect(state.yawTurnDurationMs).toBe(2000);
+      expect(state.isLookingAway).toBe(false);
+
+      // t = 4000ms: 3000ms elapsed -> looking_away active!
+      state = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: turnedMatrix,
+        timestampMs: 4000,
+      }).state;
+      expect(state.isEventActive).toBe(true);
+      expect(state.yawTurnDurationMs).toBe(3000);
+      expect(state.isLookingAway).toBe(true);
+
+      // t = 4400ms: head centers -> emits looking_away event
+      const finished = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: centeredMatrix,
+        timestampMs: 4400,
+      });
+      expect(finished.state.isLookingAway).toBe(false);
+      expect(finished.completedEvent).toEqual({
+        eventType: 'looking_away',
+        startedAtMs: 1000,
+        endedAtMs: 4400,
+        durationMs: 3400,
+      });
+    });
+
+    it('keeps pitch-only tilts >= 3000ms as head_turned rather than looking_away', () => {
+      let state = createInitialHeadPoseState();
+      const tiltedOnlyMatrix = buildRotationMatrix4x4(5, 30, 0);
+      const centeredMatrix = buildRotationMatrix4x4(0, 0, 0);
+
+      state = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: tiltedOnlyMatrix,
+        timestampMs: 1000,
+      }).state;
+
+      state = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: tiltedOnlyMatrix,
+        timestampMs: 4500,
+      }).state;
+      expect(state.isTilted).toBe(true);
+      expect(state.isTurned).toBe(false);
+      expect(state.isLookingAway).toBe(false);
+
+      const finished = evaluateHeadPose(state, {
+        faceDetected: true,
+        transformationMatrix: centeredMatrix,
+        timestampMs: 4600,
+      });
+      expect(finished.completedEvent).toEqual({
+        eventType: 'head_turned',
+        startedAtMs: 1000,
+        endedAtMs: 4600,
+        durationMs: 3600,
+      });
+    });
   });
 });
