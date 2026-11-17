@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Real-Time Detection System",
+  title: "COGNIFOCUS",
   description: "Browser-based webcam attention monitor for student online study sessions.",
 };
 

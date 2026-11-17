@@ -302,7 +302,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <h1 className="text-h3 font-semibold text-on-surface truncate">
-              Study Session Monitor
+              COGNIFOCUS
             </h1>
           </div>
 
@@ -345,7 +345,7 @@ export default function Home() {
                 : 'border-transparent text-on-surface-muted hover:text-on-surface hover:border-border'
             )}
           >
-            <span>Focus Room</span>
+            <span>Monitoring Room</span>
           </button>
 
           <button
@@ -362,7 +362,7 @@ export default function Home() {
                 : 'border-transparent text-on-surface-muted hover:text-on-surface hover:border-border'
             )}
           >
-            <span>Past Sessions</span>
+            <span>Session History</span>
             <span className="ml-1 rounded-sm border border-border-strong/50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-on-surface-muted tabular-nums">
               {savedSessions.length}
             </span>
@@ -372,7 +372,7 @@ export default function Home() {
 
       {/* Main Single Centered Column (max 1120px) */}
       <div className="mx-auto max-w-[1120px] p-4 sm:p-6 space-y-6">
-        {/* Tab 1: Focus Room */}
+        {/* Tab 1: Monitoring Room */}
         <div
           role="tabpanel"
           id="tabpanel-focus"
@@ -440,7 +440,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Tab 2: Past Sessions View: Dedicated Session History */}
+        {/* Tab 2: Session History View */}
         <div
           role="tabpanel"
           id="tabpanel-history"
