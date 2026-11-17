@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AlertCircle, CheckCircle2, ArrowLeft, Mail } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ArrowLeft, Mail, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface StudentLoginViewProps {
@@ -37,6 +37,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
   const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,6 +148,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
                 variant="primary"
                 onClick={() => {
                   setMode('signin');
+                  setShowPassword(false);
                   setErrorFeedback(null);
                   setSuccessFeedback(null);
                 }}
@@ -187,7 +189,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
             {/* Brand Header inside card */}
             <div className="text-center space-y-1">
               <h1 className="text-h3 font-semibold text-on-surface">
-                Study Session Monitor
+                COGNIFOCUS
               </h1>
               <p className="text-caption text-on-surface-muted">
                 {mode === 'forgot'
@@ -209,6 +211,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
                   aria-selected={mode === 'signin'}
                   onClick={() => {
                     setMode('signin');
+                    setShowPassword(false);
                     setErrorFeedback(null);
                     setSuccessFeedback(null);
                   }}
@@ -226,6 +229,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
                   aria-selected={mode === 'signup'}
                   onClick={() => {
                     setMode('signup');
+                    setShowPassword(false);
                     setErrorFeedback(null);
                     setSuccessFeedback(null);
                   }}
@@ -243,6 +247,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
                 type="button"
                 onClick={() => {
                   setMode('signin');
+                  setShowPassword(false);
                   setErrorFeedback(null);
                   setSuccessFeedback(null);
                 }}
@@ -319,6 +324,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
                         type="button"
                         onClick={() => {
                           setMode('forgot');
+                          setShowPassword(false);
                           setErrorFeedback(null);
                           setSuccessFeedback(null);
                         }}
@@ -328,17 +334,32 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
                       </button>
                     )}
                   </div>
-                  <input
-                    id="student-password-input"
-                    type="password"
-                    autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-on-surface placeholder:text-on-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      id="student-password-input"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                      required
+                      minLength={6}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full min-h-[44px] rounded-md border border-border bg-background pl-3 pr-11 py-2 text-body-sm text-on-surface placeholder:text-on-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPassword}
+                      className="absolute right-0 inline-flex h-[44px] w-[44px] items-center justify-center rounded-r-md text-on-surface-muted hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
                   {mode === 'signup' && (
                     <span className="text-[11px] text-on-surface-muted block">
                       Must be at least 6 characters.
@@ -359,7 +380,7 @@ export const StudentLoginView: React.FC<StudentLoginViewProps> = ({
                     : mode === 'forgot'
                       ? 'Send reset link'
                       : mode === 'signin'
-                        ? 'Sign in to Study Monitor'
+                        ? 'Sign in to COGNIFOCUS'
                         : 'Create Student Account'}
                 </span>
               </Button>

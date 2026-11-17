@@ -13,11 +13,11 @@ describe('StudentLoginView Component', () => {
       />
     );
 
-    expect(screen.getByRole('heading', { name: /Study Session Monitor/i })).toBeDefined();
+    expect(screen.getByRole('heading', { name: /COGNIFOCUS/i })).toBeDefined();
     expect(screen.queryByText(/Experimental/i)).toBeNull();
     expect(screen.getByLabelText(/Student Email/i)).toBeDefined();
-    expect(screen.getByLabelText(/Password/i)).toBeDefined();
-    const signInButton = screen.getByRole('button', { name: /Sign in to Study Monitor/i });
+    expect(screen.getByLabelText(/^Password$/i)).toBeDefined();
+    const signInButton = screen.getByRole('button', { name: /Sign in to COGNIFOCUS/i });
     expect(signInButton).toBeDefined();
     expect(signInButton.className).toContain('text-on-primary');
     expect(screen.getByRole('button', { name: /Try without an account/i })).toBeDefined();
@@ -41,7 +41,7 @@ describe('StudentLoginView Component', () => {
     const signInTab = screen.getByRole('tab', { name: /Sign In/i });
     fireEvent.click(signInTab);
 
-    expect(screen.getByRole('button', { name: /Sign in to Study Monitor/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Sign in to COGNIFOCUS/i })).toBeDefined();
   });
 
   it('calls onSignIn when student submits credentials', async () => {
@@ -58,11 +58,11 @@ describe('StudentLoginView Component', () => {
     fireEvent.change(screen.getByLabelText(/Student Email/i), {
       target: { value: 'test@student.edu' },
     });
-    fireEvent.change(screen.getByLabelText(/Password/i), {
+    fireEvent.change(screen.getByLabelText(/^Password$/i), {
       target: { value: 'password123' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Sign in to Study Monitor/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Sign in to COGNIFOCUS/i }));
 
     await waitFor(() => {
       expect(onSignIn).toHaveBeenCalledWith('test@student.edu', 'password123');
@@ -86,11 +86,11 @@ describe('StudentLoginView Component', () => {
     fireEvent.change(screen.getByLabelText(/Student Email/i), {
       target: { value: 'wrong@student.edu' },
     });
-    fireEvent.change(screen.getByLabelText(/Password/i), {
+    fireEvent.change(screen.getByLabelText(/^Password$/i), {
       target: { value: 'badpassword' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Sign in to Study Monitor/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Sign in to COGNIFOCUS/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Invalid login credentials')).toBeDefined();
@@ -144,6 +144,38 @@ describe('StudentLoginView Component', () => {
 
     // Clicking back to sign in
     fireEvent.click(screen.getByRole('button', { name: /Back to sign in/i }));
-    expect(screen.getByRole('button', { name: /Sign in to Study Monitor/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Sign in to COGNIFOCUS/i })).toBeDefined();
+  });
+
+  it('toggles password visibility via the eye button and resets on mode switch', () => {
+    render(
+      <StudentLoginView
+        onSignIn={vi.fn().mockResolvedValue({ success: true })}
+        onSignUp={vi.fn().mockResolvedValue({ success: true })}
+        onContinueAsGuest={vi.fn()}
+      />
+    );
+
+    const passwordInput = screen.getByLabelText(/^Password$/i) as HTMLInputElement;
+    expect(passwordInput.type).toBe('password');
+
+    const showButton = screen.getByRole('button', { name: 'Show password' });
+    expect(showButton.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(showButton);
+    expect(passwordInput.type).toBe('text');
+
+    const hideButton = screen.getByRole('button', { name: 'Hide password' });
+    expect(hideButton.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(hideButton);
+    expect(passwordInput.type).toBe('password');
+
+    // Reveal again, then switch to Create Account tab -> should mask password again
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    expect(passwordInput.type).toBe('text');
+
+    fireEvent.click(screen.getByRole('tab', { name: /Create Account/i }));
+    expect(passwordInput.type).toBe('password');
   });
 });
