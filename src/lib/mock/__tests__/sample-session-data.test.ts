@@ -3,6 +3,7 @@ import {
   SAMPLE_STUDY_SESSION,
   SAMPLE_TIMELINE_EVENTS,
   convertEventsToTimeline,
+  convertSavedSessionEventsToTimeline,
 } from '../sample-session-data';
 import type { SessionDetectionEvent } from '@/lib/detection/session-event-engine';
 
@@ -59,5 +60,37 @@ describe('Sample Session Data & Converter', () => {
 
     expect(converted[1].title).toBe('Looking away');
     expect(converted[1].durationSeconds).toBe(4.5);
+  });
+
+  it('converts persisted snake_case database events to chronologically sorted timeline items', () => {
+    const startIso = '2026-11-20T08:00:00.000Z';
+    const converted = convertSavedSessionEventsToTimeline(
+      [
+        {
+          id: 'db-2',
+          event_type: 'looking_away',
+          started_at: '2026-11-20T08:03:00.000Z',
+          duration_ms: 4100,
+        },
+        {
+          id: 'db-1',
+          event_type: 'eyes_closed',
+          started_at: '2026-11-20T08:01:30.000Z',
+          duration_ms: 1600,
+        },
+      ],
+      startIso
+    );
+
+    expect(converted).toHaveLength(2);
+    expect(converted[0].id).toBe('db-1');
+    expect(converted[0].eventType).toBe('eyes_closed');
+    expect(converted[0].timeIntoSessionFormatted).toBe('01:30');
+    expect(converted[0].durationSeconds).toBe(1.6);
+
+    expect(converted[1].id).toBe('db-2');
+    expect(converted[1].eventType).toBe('looking_away');
+    expect(converted[1].timeIntoSessionFormatted).toBe('03:00');
+    expect(converted[1].durationSeconds).toBe(4.1);
   });
 });

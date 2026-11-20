@@ -37,6 +37,9 @@ export default function Home() {
   const [isBreakReminderOpen, setIsBreakReminderOpen] = useState(false);
   const [savedSessions, setSavedSessions] = useState<SavedSessionSummary[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [selectedSummarySessionId, setSelectedSummarySessionId] = useState<
+    string | null
+  >(null);
   const [lastDeletedSessionId, setLastDeletedSessionId] = useState<
     string | null
   >(null);
@@ -91,11 +94,15 @@ export default function Home() {
 
   // Load saved sessions on mount and when auth user changes (Strict Tenant Isolation)
   useEffect(() => {
+    if (authStatus === 'loading') {
+      return;
+    }
     let isMounted = true;
     async function refreshSavedSessions() {
       setIsLoadingHistory(true);
-      // Immediately clear current list so previous user's sessions don't linger
+      // Immediately clear current list and selection so previous user's sessions don't linger
       setSavedSessions([]);
+      setSelectedSummarySessionId(null);
       const { sessions } = await loadSavedSessions({}, authUserId);
       if (isMounted) {
         setSavedSessions(sessions);
@@ -253,6 +260,7 @@ export default function Home() {
         saved,
         ...prev.filter((s) => s.id !== saved.id),
       ]);
+      setSelectedSummarySessionId(saved.id);
     }
   }, [authUserId, settings, stopCamera, stopSession]);
 
@@ -264,6 +272,7 @@ export default function Home() {
       const res = await deleteSavedSession(sessionId, {}, authUserId);
       if (res.success) {
         setSavedSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        setSelectedSummarySessionId((prev) => (prev === sessionId ? null : prev));
         setLastDeletedSessionId(sessionId);
       }
     },
@@ -276,6 +285,7 @@ export default function Home() {
     }
     // CRITICAL: Immediately clear in-memory sessions so nothing leaks to the next user!
     setSavedSessions([]);
+    setSelectedSummarySessionId(null);
     if (authEmail) {
       await signOut();
     }
@@ -479,10 +489,14 @@ export default function Home() {
             className="block calm-fade-in"
           >
             <SessionSummaryView
+              isMonitoring={isMonitoring}
               currentSessionEvents={engineState.events}
               currentSessionDurationSeconds={elapsedSeconds}
               sessionStartIso={sessionStartIsoRef.current}
               savedSessions={savedSessions}
+              isLoadingHistory={isLoadingHistory}
+              selectedSessionId={selectedSummarySessionId}
+              onSelectSession={setSelectedSummarySessionId}
             />
           </div>
         )}
@@ -499,6 +513,10 @@ export default function Home() {
               sessions={savedSessions}
               isLoading={isLoadingHistory}
               onDeleteSession={handleDeleteSession}
+              onInspectSession={(sessionId) => {
+                setSelectedSummarySessionId(sessionId);
+                setActiveTab('analytics');
+              }}
               lastDeletedSessionId={lastDeletedSessionId}
             />
           </div>

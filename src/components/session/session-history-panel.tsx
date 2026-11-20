@@ -11,6 +11,7 @@ export interface SessionHistoryPanelProps {
   sessions: readonly SavedSessionSummary[];
   isLoading?: boolean;
   onDeleteSession: (sessionId: string) => Promise<void> | void;
+  onInspectSession?: (sessionId: string) => void;
   lastDeletedSessionId?: string | null;
 }
 
@@ -40,6 +41,7 @@ export const SessionHistoryPanel: React.FC<SessionHistoryPanelProps> = ({
   sessions,
   isLoading = false,
   onDeleteSession,
+  onInspectSession,
   lastDeletedSessionId = null,
 }) => {
   const [sessionToDelete, setSessionToDelete] = useState<SavedSessionSummary | null>(null);
@@ -179,8 +181,20 @@ export const SessionHistoryPanel: React.FC<SessionHistoryPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Accessible Delete Control (44px target, zero decorative icon) */}
-                  <div className="flex items-center shrink-0 self-start sm:self-auto">
+                  {/* Accessible Controls (44px targets, zero decorative icons) */}
+                  <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                    {onInspectSession && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        aria-label={`View summary for session from ${formatSessionStartTime(session.startedAt)}`}
+                        onClick={() => onInspectSession(session.id)}
+                        className="min-h-[44px] px-3.5 font-mono text-caption text-on-surface hover:border-primary hover:bg-primary-container/30 rounded-md shadow-none transition-colors"
+                      >
+                        <span>View summary</span>
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="secondary"

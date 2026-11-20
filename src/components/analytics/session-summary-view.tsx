@@ -1,42 +1,116 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { TimelineChart } from './timeline-chart';
 import {
-  SAMPLE_STUDY_SESSION,
-  SAMPLE_TIMELINE_EVENTS,
   convertEventsToTimeline,
+  convertSavedSessionEventsToTimeline,
   type MockTimelineItem,
 } from '@/lib/mock/sample-session-data';
 import type { SessionDetectionEvent } from '@/lib/detection/session-event-engine';
 import type { SavedSessionSummary } from '@/lib/session/session-storage';
 import { formatElapsedTime } from '@/lib/session/use-session-state';
+import { formatSessionStartTime } from '@/components/session/session-history-panel';
+
+export const LIVE_SESSION_KEY = '__live__';
 
 export interface SessionSummaryViewProps {
+  isMonitoring?: boolean;
   currentSessionEvents?: readonly SessionDetectionEvent[];
   currentSessionDurationSeconds?: number;
   sessionStartIso?: string | null;
   savedSessions?: readonly SavedSessionSummary[];
+  isLoadingHistory?: boolean;
+  selectedSessionId?: string | null;
+  onSelectSession?: (sessionId: string) => void;
 }
 
 export const SessionSummaryView: React.FC<SessionSummaryViewProps> = ({
+  isMonitoring = false,
   currentSessionEvents = [],
   currentSessionDurationSeconds = 0,
   sessionStartIso = null,
+  savedSessions = [],
+  isLoadingHistory = false,
+  selectedSessionId = null,
+  onSelectSession,
 }) => {
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
 
-  // Use current live session events if recorded; otherwise use the standard 25-min session events for the active session
-  const hasLiveEvents = currentSessionEvents.length > 0;
-  const timelineEvents: MockTimelineItem[] = hasLiveEvents
-    ? convertEventsToTimeline(currentSessionEvents, sessionStartIso ?? undefined)
-    : SAMPLE_TIMELINE_EVENTS;
+  const hasLiveSession = isMonitoring || currentSessionEvents.length > 0;
 
-  const totalDurationSeconds = hasLiveEvents
-    ? currentSessionDurationSeconds
-    : SAMPLE_STUDY_SESSION.durationSeconds;
+  // Determine which session is active in the view:
+  // 1. Explicit controlled selection (from Session History or dropdown)
+  // 2. Local dropdown selection
+  // 3. Live session if currently monitoring
+  // 4. Most recent saved session from the user's database/local history
+  const requestedId = selectedSessionId ?? localSelectedId;
+
+  const resolvedSession = useMemo(() => {
+    if (requestedId === LIVE_SESSION_KEY && hasLiveSession) {
+      return { kind: 'live' as const };
+    }
+    if (requestedId && requestedId !== LIVE_SESSION_KEY) {
+      const matched = savedSessions.find((s) => s.id === requestedId);
+      if (matched) {
+        return { kind: 'saved' as const, session: matched };
+      }
+    }
+    if (hasLiveSession) {
+      return { kind: 'live' as const };
+    }
+    if (savedSessions.length > 0) {
+      return { kind: 'saved' as const, session: savedSessions[0] };
+    }
+    return { kind: 'empty' as const };
+  }, [requestedId, hasLiveSession, savedSessions]);
+
+  const activeSelectValue =
+    resolvedSession.kind === 'live'
+      ? LIVE_SESSION_KEY
+      : resolvedSession.kind === 'saved'
+      ? resolvedSession.session.id
+      : '';
+
+  const handleSessionChange = (nextId: string) => {
+    setSelectedEventId(null);
+    setFilterType('all');
+    setLocalSelectedId(nextId);
+    onSelectSession?.(nextId);
+  };
+
+  const timelineEvents: MockTimelineItem[] = useMemo(() => {
+    if (resolvedSession.kind === 'live') {
+      return convertEventsToTimeline(
+        currentSessionEvents,
+        sessionStartIso ?? undefined
+      );
+    }
+    if (resolvedSession.kind === 'saved') {
+      return convertSavedSessionEventsToTimeline(
+        resolvedSession.session.events,
+        resolvedSession.session.startedAt
+      );
+    }
+    return [];
+  }, [resolvedSession, currentSessionEvents, sessionStartIso]);
+
+  const totalDurationSeconds =
+    resolvedSession.kind === 'live'
+      ? currentSessionDurationSeconds
+      : resolvedSession.kind === 'saved'
+      ? resolvedSession.session.durationSeconds
+      : 0;
+
+  const sessionSubtitle =
+    resolvedSession.kind === 'live'
+      ? 'Active session'
+      : resolvedSession.kind === 'saved'
+      ? formatSessionStartTime(resolvedSession.session.startedAt)
+      : 'No session recorded';
 
   const eyesClosedCount = timelineEvents.filter(
     (e) => e.eventType === 'eyes_closed'
@@ -61,13 +135,64 @@ export const SessionSummaryView: React.FC<SessionSummaryViewProps> = ({
     return true;
   });
 
+  if (isLoadingHistory && resolvedSession.kind === 'empty') {
+    return (
+      <div
+        role="status"
+        aria-label="Loading session summary..."
+        className="space-y-6"
+      >
+        <div className="pb-4 border-b border-border">
+          <h2 className="text-h3 font-semibold tracking-tight text-on-surface">
+            Study Session Analytics & Timeline
+          </h2>
+        </div>
+        <div className="rounded-md border border-border bg-surface p-8 text-center">
+          <p className="text-body-sm text-on-surface-muted">
+            Loading saved session data...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Top Toolbar: Direct Title */}
-      <div className="pb-4 border-b border-border">
+      {/* Top Toolbar: Direct Title + Saved Session Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-border">
         <h2 className="text-h3 font-semibold tracking-tight text-on-surface">
           Study Session Analytics & Timeline
         </h2>
+
+        {(savedSessions.length > 0 || hasLiveSession) && (
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="summary-session-selector"
+              className="text-caption font-medium text-on-surface-muted whitespace-nowrap"
+            >
+              Session
+            </label>
+            <select
+              id="summary-session-selector"
+              aria-label="Select study session to inspect"
+              value={activeSelectValue}
+              onChange={(e) => handleSessionChange(e.target.value)}
+              className="min-h-[44px] rounded-md border border-border-strong bg-surface px-3 py-2 font-mono text-caption text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {hasLiveSession && (
+                <option value={LIVE_SESSION_KEY}>
+                  Active session ({formatElapsedTime(currentSessionDurationSeconds)})
+                </option>
+              )}
+              {savedSessions.map((session, idx) => (
+                <option key={session.id} value={session.id}>
+                  {idx === 0 ? 'Latest · ' : ''}
+                  {formatSessionStartTime(session.startedAt)} ({formatElapsedTime(session.durationSeconds)})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Single Unified Ledger Strip (Replaces 4 Floating KPI Cards) */}
@@ -81,7 +206,7 @@ export const SessionSummaryView: React.FC<SessionSummaryViewProps> = ({
             {formatElapsedTime(totalDurationSeconds)}
           </p>
           <p className="text-caption font-mono text-on-surface-muted">
-            Active session
+            {sessionSubtitle}
           </p>
         </div>
 
@@ -140,7 +265,7 @@ export const SessionSummaryView: React.FC<SessionSummaryViewProps> = ({
         <div className="p-4">
           <TimelineChart
             events={timelineEvents}
-            totalDurationMinutes={Math.ceil(totalDurationSeconds / 60) || 25}
+            totalDurationMinutes={Math.max(1, Math.ceil(totalDurationSeconds / 60))}
             selectedEventId={selectedEventId}
             onSelectEvent={(id) => {
               setSelectedEventId((prev) => (prev === id ? null : id));
@@ -206,7 +331,11 @@ export const SessionSummaryView: React.FC<SessionSummaryViewProps> = ({
         {filteredEvents.length === 0 ? (
           <div className="p-8 text-center bg-background/40">
             <p className="text-body-sm text-on-surface-muted">
-              No matching events found for this filter.
+              {resolvedSession.kind === 'empty'
+                ? 'No study sessions recorded yet. Start a session in Monitoring Room to view your summary and timeline.'
+                : timelineEvents.length === 0
+                ? 'No observable signs were recorded during this session.'
+                : 'No matching events found for this filter.'}
             </p>
           </div>
         ) : (

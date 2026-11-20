@@ -143,4 +143,24 @@ describe('SessionHistoryPanel Component', () => {
       )
     ) .toBeDefined();
   });
+
+  it('calls onInspectSession when clicking View summary on a saved session', () => {
+    const onInspectSession = vi.fn();
+
+    render(
+      <SessionHistoryPanel
+        sessions={[sampleSession]}
+        onDeleteSession={vi.fn()}
+        onInspectSession={onInspectSession}
+      />
+    );
+
+    const viewBtn = screen.getByRole('button', {
+      name: /View summary for session from/,
+    });
+    fireEvent.click(viewBtn);
+
+    expect(onInspectSession).toHaveBeenCalledTimes(1);
+    expect(onInspectSession).toHaveBeenCalledWith(sampleSession.id);
+  });
 });

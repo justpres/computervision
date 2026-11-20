@@ -1,5 +1,6 @@
 import type { SavedSessionSummary } from '@/lib/session/session-storage';
 import type { SessionDetectionEvent } from '@/lib/detection/session-event-engine';
+import type { SaveSessionEventInput } from '@/lib/validation/session';
 import { DETECTION_DEFAULTS } from '@/lib/detection/config';
 
 /**
@@ -147,4 +148,45 @@ export function convertEventsToTimeline(
       startedAtIso: evt.startedAtIso,
     };
   });
+}
+
+/**
+ * Converts persisted database/localStorage session events (`SaveSessionEventInput`)
+ * into chronologically sorted `MockTimelineItem` records for Summary & Timeline.
+ */
+export function convertSavedSessionEventsToTimeline(
+  events: readonly SaveSessionEventInput[],
+  sessionStartIso: string
+): MockTimelineItem[] {
+  const baseTime = Date.parse(sessionStartIso);
+  const validBase = Number.isFinite(baseTime);
+
+  return events
+    .map((evt, idx) => {
+      const evtTime = Date.parse(evt.started_at);
+      const offsetMs =
+        validBase && Number.isFinite(evtTime)
+          ? Math.max(0, evtTime - baseTime)
+          : 0;
+      const offsetSeconds = Math.floor(offsetMs / 1000);
+
+      let title = 'Sign detected';
+      if (evt.event_type === 'eyes_closed') title = 'Eyes closed';
+      else if (evt.event_type === 'long_eye_closure') title = 'Long eye closure';
+      else if (evt.event_type === 'head_turned') title = 'Head turned';
+      else if (evt.event_type === 'looking_away') title = 'Looking away';
+
+      return {
+        id: evt.id || `saved-evt-${idx}`,
+        eventType: evt.event_type,
+        title,
+        minuteMark: parseFloat((offsetSeconds / 60).toFixed(1)),
+        startedAtMs: offsetMs,
+        durationMs: evt.duration_ms,
+        durationSeconds: parseFloat((evt.duration_ms / 1000).toFixed(1)),
+        timeIntoSessionFormatted: formatTime(offsetSeconds),
+        startedAtIso: evt.started_at,
+      };
+    })
+    .sort((a, b) => a.startedAtMs - b.startedAtMs);
 }
